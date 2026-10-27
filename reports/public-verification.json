@@ -1,0 +1,23 @@
+{
+  "origin": "https://learn.nix.zone",
+  "checks": [
+    "Valid public TLS, registration/About and unauthenticated API refusal",
+    "Both existing disposable accounts sign in with protected independent sessions",
+    "Both public accounts start real private application runtimes",
+    "Chat IDs and records remain private across accounts and Cloudflare cache",
+    "SSE crosses TLS/Tunnel without buffering and private events stay in their account",
+    "Public multipart upload/download preserves exact bytes and sibling denial",
+    "Unauthenticated corresponding-source download exactly matches deployed release",
+    "Public logout closes active private SSE and leaves the other account usable",
+    "Cross-origin writes and private runtime lifecycle endpoint refused publicly",
+    "Live headers preserve no-store authentication and HTTPS policy"
+  ],
+  "accounts": [
+    "release_probe_a",
+    "release_probe_b"
+  ],
+  "ok": true,
+  "verifiedOn": "2026-10-27",
+  "sourceCommit": "27f5c7f89347a4a027d77366fdc04a9187c070a9",
+  "image": "sha256:9ea72a114613c6596026fd72d11c874c9eaecde12b804e4f6f0def3a2a30f300"
+}

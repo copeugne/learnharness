@@ -1,0 +1,29 @@
+{
+  "host": "primary",
+  "image": "learnharness:d94bff9",
+  "checks": [
+    "Unauthenticated API requests refused",
+    "Two real private ARM64 application containers started",
+    "Direct and wrong-account runtime capabilities refused on pages and APIs",
+    "Teaching/practice records and guessed chat IDs isolated",
+    "Private settings and web subscription same-origin controls work through gateway",
+    "Other learner files, host credential store and Docker socket inaccessible",
+    "Metadata, host, private network and sibling traffic blocked; public HTTPS works",
+    "96 MiB per-user disk quota enforced by real kernel writes",
+    "Real Chromium demo execution succeeds; private records survive runtime restart",
+    "Private uploads preserve exact bytes and tool-readable paths; sibling IDs refused",
+    "Gateway idle suspension and authenticated resume preserve records and uploads",
+    "Logout revokes access without affecting the other account"
+  ],
+  "accounts": [
+    {
+      "id": "d45e05bb-25da-4d44-9559-4c9deb4ebc6d",
+      "name": "learn-user-d45e05bb-25da-4d44-9559-4c9deb4ebc6d"
+    },
+    {
+      "id": "a45a38cb-3d2d-4984-9373-5b5511315aed",
+      "name": "learn-user-a45a38cb-3d2d-4984-9373-5b5511315aed"
+    }
+  ],
+  "ok": true
+}

@@ -1,0 +1,127 @@
+{
+  "sample": "Five authenticated requests from OCI VPS through public Cloudflare TLS/Tunnel; first connection cold, following connection reused. Network measurements only, not Core Web Vitals.",
+  "samples": [
+    {
+      "headersMs": 172.24451299999998,
+      "totalMs": 176.399692,
+      "encoding": "gzip",
+      "encodedBytes": 6666
+    },
+    {
+      "headersMs": 34.155197000000015,
+      "totalMs": 35.91468500000002,
+      "encoding": "gzip",
+      "encodedBytes": 6666
+    },
+    {
+      "headersMs": 44.791286000000014,
+      "totalMs": 45.97937200000001,
+      "encoding": "gzip",
+      "encodedBytes": 6668
+    },
+    {
+      "headersMs": 50.226590999999985,
+      "totalMs": 51.48879699999998,
+      "encoding": "gzip",
+      "encodedBytes": 6668
+    },
+    {
+      "headersMs": 46.11393199999998,
+      "totalMs": 46.94369599999999,
+      "encoding": "gzip",
+      "encodedBytes": 6669
+    }
+  ],
+  "warmMedianHeadersMs": 45.452608999999995,
+  "scripts": [
+    {
+      "path": "/_next/static/chunks/0d4k2p6ktf1nk.js",
+      "encodedBytes": 46316,
+      "decodedBytes": 172784,
+      "encoding": "gzip",
+      "cache": "MISS"
+    },
+    {
+      "path": "/_next/static/chunks/08sd7xz61zo_j.js",
+      "encodedBytes": 71697,
+      "decodedBytes": 229282,
+      "encoding": "gzip",
+      "cache": "MISS"
+    },
+    {
+      "path": "/_next/static/chunks/turbopack-37nlydby720iw.js",
+      "encodedBytes": 4291,
+      "decodedBytes": 10914,
+      "encoding": "gzip",
+      "cache": "MISS"
+    },
+    {
+      "path": "/_next/static/chunks/0lmkwm4buam83.js",
+      "encodedBytes": 12139,
+      "decodedBytes": 40564,
+      "encoding": "gzip",
+      "cache": "MISS"
+    },
+    {
+      "path": "/_next/static/chunks/3jlg7_ni_6bru.js",
+      "encodedBytes": 24857,
+      "decodedBytes": 88861,
+      "encoding": "gzip",
+      "cache": "MISS"
+    },
+    {
+      "path": "/_next/static/chunks/04wgzz2q3c8x3.js",
+      "encodedBytes": 279996,
+      "decodedBytes": 987972,
+      "encoding": "gzip",
+      "cache": "MISS"
+    },
+    {
+      "path": "/_next/static/chunks/0wielerdtft3d.js",
+      "encodedBytes": 76879,
+      "decodedBytes": 263279,
+      "encoding": "gzip",
+      "cache": "MISS"
+    },
+    {
+      "path": "/_next/static/chunks/2pqsftn61q8jz.js",
+      "encodedBytes": 12399,
+      "decodedBytes": 43366,
+      "encoding": "gzip",
+      "cache": "MISS"
+    },
+    {
+      "path": "/_next/static/chunks/3-z0ermpng8ue.js",
+      "encodedBytes": 16802,
+      "decodedBytes": 56176,
+      "encoding": "gzip",
+      "cache": "MISS"
+    },
+    {
+      "path": "/_next/static/chunks/3ggz_5qs_ilgb.js",
+      "encodedBytes": 15424,
+      "decodedBytes": 46637,
+      "encoding": "gzip",
+      "cache": "MISS"
+    },
+    {
+      "path": "/_next/static/chunks/0cz1d0mv5g_q7.js",
+      "encodedBytes": 39627,
+      "decodedBytes": 112594,
+      "encoding": "gzip",
+      "cache": "MISS"
+    },
+    {
+      "path": "/_next/static/chunks/0lxcawcpfzpk3.js",
+      "encodedBytes": 8409,
+      "decodedBytes": 27538,
+      "encoding": "gzip",
+      "cache": "MISS"
+    }
+  ],
+  "scriptEncodedBytes": 608836,
+  "scriptDecodedBytes": 2079967,
+  "verifiedOn": "2026-10-27",
+  "sourceCommit": "27f5c7f89347a4a027d77366fdc04a9187c070a9",
+  "image": "sha256:9ea72a114613c6596026fd72d11c874c9eaecde12b804e4f6f0def3a2a30f300"
+}
