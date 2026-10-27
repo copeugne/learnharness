@@ -670,6 +670,7 @@ function SessionsSidebar() {
 				if (!mobile || !open || event.defaultPrevented || document.querySelector("[data-lh-menu]")) return;
 				if (event.key === "Escape") { event.stopPropagation(); toggle(); }
 				if (event.key === "Tab") {
+					event.stopPropagation();
 					const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('a[href],button:not([disabled]),input:not([disabled]),[tabindex="0"]')).filter(control => control.getClientRects().length > 0);
 					const first = controls[0], last = controls.at(-1);
 					if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }

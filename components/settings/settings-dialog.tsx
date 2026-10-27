@@ -127,6 +127,7 @@ function SettingsDialog({
 		backdrop.querySelector<HTMLButtonElement>('[data-testid="settings-close"]')?.focus();
 		const trap = (event: KeyboardEvent) => {
 			if (event.key !== "Tab" || event.defaultPrevented || document.querySelector("[data-lh-menu]")) return;
+			event.stopPropagation();
 			const controls = Array.from(backdrop.querySelectorAll<HTMLElement>('a[href],button:not([disabled]),input:not([disabled]),textarea:not([disabled]),select:not([disabled]),[tabindex="0"]')).filter(element => element.getClientRects().length > 0);
 			const first = controls[0], last = controls.at(-1);
 			if (event.shiftKey && (document.activeElement === first || !backdrop.contains(document.activeElement))) { event.preventDefault(); last?.focus(); }

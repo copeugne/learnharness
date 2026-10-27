@@ -5,7 +5,7 @@ release=${1:?Pass the reviewed absolute release directory}
 [[ "$release" == /opt/learnharness/releases/* && -f "$release/deploy/gateway.mjs" ]] || { echo 'Unexpected release directory.' >&2; exit 1; }
 chown -R root:root "$release"
 printf '[host] 0%% (0/5) Installing quota tools\n'
-dnf install -y quota
+if ! rpm -q quota >/dev/null 2>&1; then dnf install -y quota; fi
 id learn-gateway >/dev/null 2>&1 || useradd --system --no-create-home --shell /sbin/nologin learn-gateway
 usermod -aG docker learn-gateway
 install -d -m 0700 /srv/learnharness
