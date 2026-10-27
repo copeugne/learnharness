@@ -1,0 +1,20 @@
+{
+  "verifiedOn": "2026-10-27",
+  "sourceCommit": "27f5c7f89347a4a027d77366fdc04a9187c070a9",
+  "image": "sha256:9ea72a114613c6596026fd72d11c874c9eaecde12b804e4f6f0def3a2a30f300",
+  "context": "Disposable unprivileged read-only container on the tenant network; no credentials, account mounts or model inference",
+  "checks": [
+    {
+      "endpoint": "https://auth.openai.com/.well-known/jwks.json",
+      "status": 200,
+      "assertion": "Public JWKS includes an identified RSA signing key; TLS verification succeeds"
+    },
+    {
+      "endpoint": "https://api.openai.com/v1/models",
+      "status": 401,
+      "assertion": "Public API reachable and returns structured authentication error without credentials"
+    }
+  ],
+  "ok": true,
+  "remaining": "Real OAuth consent, selected-account entitlement and completed inference remain unverified"
+}
