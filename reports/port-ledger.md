@@ -15,7 +15,7 @@ Source baseline: upstream main `3dc88472eea41eed0d5e5f29c2f16f8d063c415b`, versi
 | End-to-end fidelity and reliability | Automated and browser fixture checks pass | Full suite, deployment regressions, live streaming/upload/logout, desktop and emulated phone checks | Real provider response, physical Safari/microphone and chooser automation permission |
 | Corresponding source availability | Published | Public /source archive matches exact deployed commit and retains LICENSE | None for deployed release |
 
-Current block: public deployment is complete; verify real ChatGPT subscription sign-in and a completed teaching/practice response after the user connects their own account. Public username/password registration and private runtime per account are approved. Do not mark the whole goal complete while real provider verification remains unproven.
+Current block: blocked on the user creating their learner account and connecting ChatGPT. Public deployment is complete; real subscription sign-in and completed teaching/practice responses remain unverified. Public username/password registration and private runtime per account are approved. Do not mark the whole goal complete while real provider verification remains unproven.
 
 Performance skill: `/home/lonestar/.codex/skills/web-perf/SKILL.md`. No Chrome DevTools trace MCP found in available tools; browser instrumentation and network measurements remain available through local tooling.
 
@@ -114,3 +114,7 @@ Next acceptance: user creates an account, connects ChatGPT and selects models, t
 ## Subscription endpoint readiness (2026-10-27)
 
 The live gateway and tenant network services remain active; registration GET returns 200 and unauthenticated chats API returns 401. The learner registry is still empty, so no authorized learner session exists for actual inference. A disposable, unprivileged read-only instance of the deployed image on the tenant network reached the actual OpenAI signing-key endpoint over verified TLS and received a structured 401 from the model endpoint without credentials. [Endpoint evidence](openai-endpoint-preflight.json) records both results. This checks public OAuth/API transport, not sign-in or plan eligibility. The initial invocation omitted Docker's stdin attachment and executed no assertions; the corrected invocation attached stdin and requires both completion markers. Its executed log is `openai-endpoint-preflight.log`. No credential was read or transferred. The container removes itself on exit.
+
+## Blocked audit (2026-10-27)
+
+The same missing authenticated learner account remains after three consecutive goal turns. The latest direct VPS check again shows zero registered learners and zero provisioned learner spaces, with the production gateway active. Independent deployment, isolation, source-publication and public OpenAI transport checks are complete. Actual subscription consent, entitlement and inference require the user's sign-in; physical device and optional-service coverage remains limited as recorded above. The goal is blocked on that external setup, not complete. Resume after the user connects ChatGPT and identifies the learner account to test.
