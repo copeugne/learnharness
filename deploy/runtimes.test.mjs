@@ -54,6 +54,7 @@ test('a stopped old image is replaced while preserving the same private quota di
   assert(calls.some(args => args[0] === 'rm' && args[1] === name));
   const run = calls.find(args => args[0] === 'run');
   assert(run.includes(`/srv/learnharness/tenants/${id}:/home/node/learner:Z`));
+  assert(run.includes('LH_WEB_HOSTED=1'), 'server rendering and client hydration share the hosted mode');
   for (const flag of ['--read-only', '--cap-drop', '--memory', '--pids-limit', '--user']) assert(run.includes(flag));
   assert(!calls.some(args => args.includes('--volumes')), 'image replacement never removes learner storage');
 });

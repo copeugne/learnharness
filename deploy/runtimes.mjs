@@ -75,6 +75,7 @@ export class Runtimes {
         '--user', `${uid}:${uid}`,
         '--env', 'HOME=/home/node/learner', '--env', 'LH_DATA_DIR=/home/node/learner/data',
         '--env', 'LH_AUTH_FILE=/home/node/learner/auth.json', '--env', 'LH_IGNORE_ENV_KEYS=1',
+        '--env', 'LH_WEB_HOSTED=1',
         '--env', `LH_WEB_RUNTIME_SECRET=${randomBytes(32).toString('hex')}`,
         '--env', 'NODE_OPTIONS=--max-old-space-size=512', this.image,
         ]);
