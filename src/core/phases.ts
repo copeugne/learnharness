@@ -1,3 +1,4 @@
+import { planReviewChoice } from "./question-core.ts";
 /**
  * Phase derivation (docs/probe-teach-split.md §4) — EXPLICIT EVENTS, never
  * occupancy. The probe→teach agent split (2026-09-11) gave the first
@@ -30,7 +31,8 @@
  * structural); `phaseAt3Lh` folds the NATIVE record (server summaries,
  * tests) — probe→plan advances at the probe_done RESULT message, plan→teach
  * at the assistant message carrying the first nodeId-tagged quiz CALL.
- * Both are strictly sequential; the two derivations agree on every settled
+ * Successful diagnostic reopening returns either fold to probe. The two
+ * derivations agree on every settled
  * record (a call's part projects into the same view boundary).
  *
  * Pure: only browser-safe core helpers — safe on server, client, and tests.
@@ -76,9 +78,11 @@ function advance(
 ): Phase3 {
 	if (!parts) return phase;
 	for (const part of parts) {
+		if (part.type === "tool-ask_user_question" && part.state === "output-available" &&
+			planReviewChoice(part.input, part.output) === "probe") phase = "probe";
 		if (part.type === "tool-resume_probe" && part.state === "output-available" &&
 			(part.output as { ok?: unknown } | undefined)?.ok === true) phase = "probe";
-		// STRICTLY SEQUENTIAL: probe → plan only via a concluded probe_done,
+		// probe → plan only via a concluded probe_done,
 		// plan → teach only via a valid nodeId-tagged question. Rejected
 		// calls remain retry context and never represent posed teaching.
 		if (
@@ -159,7 +163,7 @@ export function phaseTimeline(messages: readonly PhaseMessage[]): Phase3[] {
 
 // ─── the native fold (Wave D: record-side phase over LhMessage[]) ───────────
 
-import { probeDoneResultIds, successfulToolResultIds, type LhMessage } from "./native-messages.ts";
+import { planReviewResults, probeDoneResultIds, successfulToolResultIds, type LhMessage } from "./native-messages.ts";
 
 /** The phase at `upToIndex` (inclusive; default: the last message) of a
  *  NATIVE record. probe→plan advances at the probe_done call's clean
@@ -171,6 +175,7 @@ export function phaseAt3Lh(messages: readonly LhMessage[], upToIndex?: number): 
 	const last = Math.min(upToIndex ?? messages.length - 1, messages.length - 1);
 	const concluded = probeDoneResultIds(messages.slice(0, last + 1));
 	const resumed = successfulToolResultIds(messages.slice(0, last + 1), "resume_probe");
+	const reviews = planReviewResults(messages.slice(0, last + 1));
 	// Results project back onto their calls in the client. Match that rule
 	// even when asking for the phase at an earlier message index.
 	const rejected = new Set(messages.flatMap((m) =>
@@ -181,7 +186,7 @@ export function phaseAt3Lh(messages: readonly LhMessage[], upToIndex?: number): 
 		const m = messages[i]!;
 		const role = (m as { role?: string }).role;
 		if (role === "toolResult") {
-			if (resumed.has(m.id)) phase = "probe";
+			if (resumed.has(m.id) || reviews.get(m.id) === "probe") phase = "probe";
 			if (phase === "probe" && concluded.has(m.id)) phase = "plan";
 		} else if (m.role === "assistant" && m.stopReason !== "error" && m.stopReason !== "aborted") {
 			const content = (m as { content?: ReadonlyArray<{ type?: string; name?: string; id?: string; arguments?: unknown }> }).content ?? [];

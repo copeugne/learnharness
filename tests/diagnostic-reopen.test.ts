@@ -99,3 +99,28 @@ test("reopening is always available and blocks a later teaching pose in the same
 		correctAnswer: "a", explanation: "a", type: "predict", nodeId: "foundation" });
 	assert.equal(quiz.isError, true);
 });
+
+test("a steer arriving during probe completion can reopen before the queued planning wake", async () => {
+	const chat = chatStore.createChat("In-flight diagnostic request"); created.push(chat.id);
+	const faux = createFauxCore({});
+	let requests = 0;
+	faux.setResponses([
+		() => fauxAssistantMessage([fauxToolCall("probe_done", { assessment: { strands: [{ strand: "foundation", assessment: "Initial estimate" }], summary: "Provisional" } }, { id: "initial-done" })], { stopReason: "toolUse" }),
+		(context) => {
+			requests++;
+			assert.match(JSON.stringify(context.messages), /continue probing/);
+			return fauxAssistantMessage([fauxToolCall("resume_probe", {}, { id: "resume-live" })], { stopReason: "toolUse" });
+		},
+	]);
+	const wakes: SteerMessage[] = [];
+	const agent = createProberAgent({ chatId: chat.id, chatStore, jobStore, spawn: () => {}, deliver: (s) => {
+		wakes.push(s);
+		if (wakes.length === 1) agent.steer({ role: "user", content: "continue probing", timestamp: Date.now() });
+	} }, { engine: { model: faux.getModel(), streamFn: faux.streamSimple } });
+	await agent.prompt("Assess foundations");
+	assert.equal(requests, 1);
+	assert.equal(wakes.length, 2);
+	const persisted = agent.state.messages.map((m, i) => ({ ...m, id: `live-${i}` })) as LhMessage[];
+	assert.equal(hasProbeDone(persisted), false);
+	assert.equal(phaseAt3Lh(persisted), "probe");
+});
