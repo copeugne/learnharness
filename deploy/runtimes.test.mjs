@@ -66,3 +66,26 @@ test('runtime controller rejects untrusted image names, IDs and capacities befor
   await assert.rejects(runtime.ensure('../other-user'), /identifier/);
   await assert.rejects(runtime.suspend('not-an-account'), /identifier/);
 });
+
+test('a cold readiness wait does not block another tenant and container mutations remain serialized', async () => {
+  const runtime = new Runtimes({ image: 'learnharness:test' });
+  const other = '00000000-0000-4000-8000-000000000002';
+  let release, entered;
+  const pending = new Promise(resolve => { release = resolve; });
+  const waiting = new Promise(resolve => { entered = resolve; });
+  let mutations = 0;
+  runtime.start = async account => {
+    assert.equal(mutations++, 0);
+    await Promise.resolve();
+    mutations--;
+    return { name: account };
+  };
+  runtime.waitReady = async endpoint => {
+    if (endpoint.name === id) { entered(); await pending; }
+    return endpoint;
+  };
+  const cold = runtime.ensure(id);
+  await waiting;
+  assert.equal((await runtime.ensure(other)).name, other);
+  release(); await cold;
+});

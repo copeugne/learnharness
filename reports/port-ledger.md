@@ -15,7 +15,7 @@ Source baseline: upstream main `3dc88472eea41eed0d5e5f29c2f16f8d063c415b`, versi
 | End-to-end fidelity and reliability | Unverified | Upstream tests and golden fixtures available | Run baseline and browser coverage including persistence and failures |
 | Corresponding source availability | Pending | AGPL-3.0 license retained | Serve exact port source with deployed release |
 
-Current block: establish the reproducible upstream runtime and identify concrete browser deployment changes. Stop condition: baseline build/tests and a reviewable architecture/deployment plan. Implementation decisions preserve upstream behavior; access model awaits the user's answer.
+Current block: resolve the production audit findings, build the corrected immutable ARM64 release and verify the real hosted workflows before public ingress. Public username/password registration and private runtime per account are approved.
 
 Performance skill: `/home/lonestar/.codex/skills/web-perf/SKILL.md`. No Chrome DevTools trace MCP found in available tools; browser instrumentation and network measurements remain available through local tooling.
 
@@ -74,3 +74,11 @@ The official Cloudflare CLI is usable through `npx --yes cf`; `cf zones list --n
 - `/about/` preserves the original website's ten image/font/CSS/SVG resources captured 2026-10-27, recorded in `public/about-site/manifest.json`. Only asset/navigation paths, a browser-app link and an explicit hosted-storage note change. Original desktop download links still lead to the upstream download page. About is a static gateway response and does not start a tenant. Visual comparison remains pending.
 
 Next bounded block: build the current adaptations as a new ARM64 image, repeat the real isolation checks including uploads and idle lifecycle, verify hosted desktop/mobile UI and About against the pinned reference, then measure performance and resolve any remaining feature gaps. Public DNS/ingress is still unchanged. Real provider teaching, physical-device microphone/Safari behavior and final production verification remain unproven.
+
+## Production audit remediation (2026-10-27)
+
+Four read-only production-prep lanes found and confirmed two phone navigation blockers and a cold-start logout race. The corrected code scopes fixed sidebar positioning to the actual aside, gives hosted Settings initial focus/containment/restoration with inert background, and revalidates the session after runtime readiness before opening any upstream request. Readiness polling now runs outside the serialized container-mutation queue so another learner can continue while a cold runtime starts. Files expose an initial-load retry and restore upload focus after deletion; auth validation retains the escaped username; hosted provider failures give browser-appropriate retry guidance. Hosted coarse-pointer composers avoid automatic keyboard opening and Android can resize content around its keyboard. Physical keyboard/Safari behavior remains unverified.
+
+The superseded dc479ed image built successfully and remains private. Sixteen deployment regression tests pass, including direct reproductions of logout during startup and concurrent warm/cold readiness. The first remediation typecheck caught an unchecked array index in focus restoration; corrected without changing the focus contract. New image and browser proof remain pending.
+
+Remediation checks: full application suite remains 2,346 pass / 0 fail / 0 skip (`audit-final-tests.log`); final TypeScript/lint and affected UI suite pass (`audit-composer-{types,lint}.log`, `audit-ui-tests.log`). Deployment suite has 16 passing tests (`audit-fixes-gateway.log`). Real isolation runner extended from ten to twelve checks to verify exact uploaded bytes, tool-readable paths, sibling denial and gateway-controlled suspension/resume.

@@ -16,12 +16,12 @@ fs.mkdirSync(root, { recursive: true, mode: 0o700 });
 const accounts = new Accounts(root, { maxAccounts: 2 });
 const runtimes = new Runtimes({ image: process.env.LH_TENANT_IMAGE });
 const origin = 'https://learn.nix.zone';
-const gateway = createGateway({ origin, accounts, runtimes });
+const gateway = createGateway({ origin, accounts, runtimes, idleMs: 0 });
 gateway.listen(0, '127.0.0.1'); await once(gateway, 'listening');
 const port = gateway.address().port;
 const report = { host: os.hostname(), image: process.env.LH_TENANT_IMAGE, checks: [], accounts: [] };
 let canary;
-function progress(name) { report.checks.push(name); console.log(`[isolation] ${Math.round(report.checks.length / 10 * 100)}% (${report.checks.length}/10) ${name}`); }
+function progress(name) { report.checks.push(name); console.log(`[isolation] ${Math.round(report.checks.length / 12 * 100)}% (${report.checks.length}/12) ${name}`); }
 async function request(route, { token, method = 'GET', body, headers = {} } = {}) {
   return new Promise((resolve, reject) => {
     const outgoing = http.request({ hostname: '127.0.0.1', port, path: route, method, headers: { host: 'learn.nix.zone', ...(token ? { cookie: `__Host-learn_session=${token}` } : {}), ...(body ? { origin, 'content-type': 'application/json' } : {}), ...headers } }, response => {
@@ -94,6 +94,26 @@ try {
   await runtimes.ensure(alice.account.id);
   assert((await request('/api/chats', { token: alice.token })).text.includes('Alice private'));
   progress('Real Chromium demo execution succeeds; private records survive runtime restart');
+  const boundary = 'learn-isolation-boundary';
+  const fixture = 'Private uploaded notes: λ and exact bytes.\n';
+  const body = Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="files"; filename="notes.txt"\r\nContent-Type: text/plain\r\n\r\n${fixture}\r\n--${boundary}--\r\n`);
+  const upload = await request('/api/files', { token: alice.token, method: 'POST', body, headers: { 'content-type': `multipart/form-data; boundary=${boundary}` } });
+  assert.equal(upload.status, 200);
+  const file = upload.json().uploaded[0];
+  assert.equal((await request(`/api/files/${file.id}`, { token: alice.token })).text, fixture);
+  assert.equal((await request(`/api/files/${file.id}`, { token: bob.token })).status, 404);
+  assert(!(await request('/api/files', { token: bob.token })).text.includes(file.id));
+  const read = await command(alice.endpoint.name, 'import fs from "node:fs";console.log(fs.readFileSync(process.argv[1],"utf8"))', [file.path]);
+  assert.equal(read, fixture.trim());
+  progress('Private uploads preserve exact bytes and tool-readable paths; sibling IDs refused');
+  assert.equal((await request('/api/host-runtime', { token: alice.token })).status, 404);
+  await gateway.sweepIdle();
+  const stopped = await execute('docker', ['inspect', '--format', '{{.State.Running}}', alice.endpoint.name]);
+  assert.equal(stopped.stdout.trim(), 'false');
+  assert.equal((await request(`/api/files/${file.id}`, { token: alice.token })).text, fixture);
+  assert.equal((await request(`/api/files/${file.id}`, { token: alice.token, method: 'DELETE', headers: { origin } })).status, 200);
+  assert.equal((await request(`/api/files/${file.id}`, { token: alice.token })).status, 404);
+  progress('Gateway idle suspension and authenticated resume preserve records and uploads');
   accounts.logout(alice.token);
   assert.equal((await request('/api/chats', { token: alice.token })).status, 401);
   assert.equal((await request('/api/chats', { token: bob.token })).status, 200);

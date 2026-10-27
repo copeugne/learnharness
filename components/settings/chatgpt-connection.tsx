@@ -294,7 +294,7 @@ export function ChatGPTUIProvider({ children }: { children: React.ReactNode }) {
 					<a href="https://openai.com/policies/privacy-policy/" target="_blank" rel="noreferrer" className="underline underline-offset-2">OpenAI privacy</a>
 					<a href="https://chatgpt.com/settings/usage" target="_blank" rel="noreferrer" className="underline underline-offset-2">Manage usage</a>
 				</div>
-				{!status.available && <p className="mt-3 text-xs text-muted-foreground">ChatGPT sign-in is available only in the desktop app. API-key connections remain available here.</p>}
+				{!status.available && <p className="mt-3 text-xs text-muted-foreground">{web ? "ChatGPT sign-in is temporarily unavailable. Retry the connection. API-key connections remain available here." : "ChatGPT sign-in is available only in the desktop app. API-key connections remain available here."}</p>}
 				{status.pending && <p role="status" className="mt-3 text-xs text-muted-foreground">Waiting for browser sign-in…</p>}
 				{web && status.pending && bridge?.completeLogin && <form className="mt-3" onSubmit={async (event) => {
 					event.preventDefault();

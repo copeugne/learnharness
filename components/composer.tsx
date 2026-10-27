@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { ArrowRightIcon, CornerDownLeftIcon, SquareIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Hint } from "@/components/ui/hint";
@@ -75,6 +76,11 @@ export function Composer({
 	 *  empty-Enter share it. */
 	onNext?: () => void;
 }) {
+	const localInputRef = useRef<HTMLTextAreaElement>(null);
+	const composerRef = inputRef ?? localInputRef;
+	useEffect(() => {
+		if (process.env.LH_WEB_HOSTED === "1" && autoFocus && !window.matchMedia("(pointer: coarse)").matches) composerRef.current?.focus();
+	}, [autoFocus, composerRef]);
 	const act = () => {
 		const action = enterAction({ busy, canSend, nextProblem });
 		if (action === "stop") onStop();
@@ -91,7 +97,7 @@ export function Composer({
 			}}
 		>
 			<textarea
-				ref={inputRef}
+				ref={composerRef}
 				value={value}
 				onChange={(e) => onChange(e.target.value)}
 				onKeyDown={(e) => {
@@ -114,7 +120,7 @@ export function Composer({
 					}
 				}}
 				placeholder={placeholder}
-				autoFocus={autoFocus}
+				autoFocus={process.env.LH_WEB_HOSTED === "1" ? false : autoFocus}
 				rows={1}
 				className="field-sizing-content lh-input max-h-48 min-h-10 flex-1 resize-none bg-transparent px-2.5 py-2 outline-none placeholder:text-muted-foreground"
 			/>

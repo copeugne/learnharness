@@ -217,3 +217,24 @@ test('release symlink entrypoint starts and shuts down cleanly', async t => {
   const exited = once(child, 'exit'); child.kill('SIGTERM');
   assert.equal((await exited)[0], 0);
 });
+
+test('logout revokes a request waiting for cold runtime readiness before it reaches private upstream', async t => {
+  const accounts = new Accounts(temporary(t));
+  const user = await accounts.register('cold_user', 'correct horse battery staple');
+  const token = accounts.session(user);
+  let release, started;
+  const waiting = new Promise(resolve => { started = resolve; });
+  const pending = new Promise(resolve => { release = resolve; });
+  let upstreamCalls = 0;
+  const tenant = http.createServer((_req, res) => { upstreamCalls++; res.end('private'); });
+  const tenantPort = await listen(tenant);
+  const gateway = createGateway({ accounts, origin: 'https://learn.test', runtimes: { async ensure() { started(); await pending; return { port: tenantPort }; } } });
+  const port = await listen(gateway);
+  t.after(async () => { await close(gateway); await close(tenant); });
+  const original = request(port, '/api/events', { token });
+  await waiting;
+  assert.equal((await request(port, '/auth/logout', { token, method: 'POST', headers: { origin: 'https://learn.test' } })).status, 303);
+  release();
+  assert.equal((await original).status, 401);
+  assert.equal(upstreamCalls, 0);
+});

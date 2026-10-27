@@ -11,6 +11,8 @@ export function LearnerFiles() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
+  const restoreUploadFocus = useRef(false);
+  useEffect(() => { if (!busy && restoreUploadFocus.current) { restoreUploadFocus.current = false; input.current?.focus(); } }, [busy]);
   async function refresh() {
     const response = await fetch('/api/files', { cache: 'no-store' });
     if (!response.ok) throw new Error('Your files could not be loaded. Please retry.');
@@ -39,7 +41,7 @@ export function LearnerFiles() {
     try {
       const response = await fetch(`/api/files/${file.id}`, { method: 'DELETE' });
       if (!response.ok) throw new Error('The file could not be removed. Please retry.');
-      await refresh(); setNotice('File removed. Existing session messages are unchanged.');
+      await refresh(); restoreUploadFocus.current = true; setNotice('File removed. Existing session messages are unchanged.');
     } catch (error) { setError(error instanceof Error ? error.message : 'The file could not be removed.'); }
     finally { setBusy(false); }
   }
@@ -51,7 +53,7 @@ export function LearnerFiles() {
       <form onSubmit={upload} className="space-y-3"><label htmlFor="learner-upload" className="block text-sm">Choose files</label><input ref={input} id="learner-upload" type="file" multiple required disabled={busy} className="block max-w-full rounded-sm border border-border p-2 text-base" /><Button type="submit" disabled={busy}>{busy ? 'Working…' : 'Upload files'}</Button></form>
       {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
       {notice && <p role="status" className="text-sm">{notice}</p>}
-      {files === null ? <p className="text-sm text-muted-foreground">Loading files…</p> : files.length === 0 ? <p className="text-sm text-muted-foreground">No uploaded files yet.</p> : <ul className="space-y-4">{files.map(file => <li key={file.id} className="space-y-2 rounded-sm border border-border p-4">
+      {files === null ? error ? <Button type="button" onClick={() => { setError(null); void refresh().catch(error => setError(error.message)); }}>Retry loading files</Button> : <p className="text-sm text-muted-foreground">Loading files…</p> : files.length === 0 ? <p className="text-sm text-muted-foreground">No uploaded files yet.</p> : <ul className="space-y-4">{files.map(file => <li key={file.id} className="space-y-2 rounded-sm border border-border p-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2"><strong className="break-all text-sm font-medium">{file.name}</strong><span className="text-xs text-muted-foreground">{(file.bytes / 1024).toFixed(1)} KiB</span></div>
         <code className="block select-all break-all text-sm">{file.path}</code>
         <div className="flex flex-wrap items-center gap-4"><Button type="button" size="sm" variant="outline" onClick={async () => { try { await navigator.clipboard.writeText(file.path); setNotice('File path copied.'); } catch { setError('Select the displayed path and copy it with your browser.'); } }}>Copy path</Button><a href={`/api/files/${file.id}`} className="text-sm underline underline-offset-4">Download</a><Button type="button" size="sm" variant="ghost" disabled={busy} onClick={() => void remove(file)}>Delete file</Button></div>

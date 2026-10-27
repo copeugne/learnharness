@@ -115,10 +115,36 @@ function SettingsDialog({
 	initialRow: string | null;
 }) {
 	const backdropDismiss = useBackdropDismiss(onClose);
+	const backdropRef = useRef<HTMLDivElement>(null);
+	useEffect(() => {
+		if (process.env.LH_WEB_HOSTED !== "1") return;
+		const backdrop = backdropRef.current;
+		if (!backdrop) return;
+		const previous = document.activeElement;
+		const background = Array.from(document.body.children).filter((element): element is HTMLElement => element instanceof HTMLElement && element !== backdrop);
+		const states = background.map(element => element.inert);
+		background.forEach(element => { element.inert = true; });
+		backdrop.querySelector<HTMLButtonElement>('[data-testid="settings-close"]')?.focus();
+		const trap = (event: KeyboardEvent) => {
+			if (event.key !== "Tab" || event.defaultPrevented || document.querySelector("[data-lh-menu]")) return;
+			const controls = Array.from(backdrop.querySelectorAll<HTMLElement>('a[href],button:not([disabled]),input:not([disabled]),textarea:not([disabled]),select:not([disabled]),[tabindex="0"]')).filter(element => element.getClientRects().length > 0);
+			const first = controls[0], last = controls.at(-1);
+			if (event.shiftKey && (document.activeElement === first || !backdrop.contains(document.activeElement))) { event.preventDefault(); last?.focus(); }
+			else if (!event.shiftKey && (document.activeElement === last || !backdrop.contains(document.activeElement))) { event.preventDefault(); first?.focus(); }
+		};
+		document.addEventListener("keydown", trap);
+		return () => {
+			document.removeEventListener("keydown", trap);
+			background.forEach((element, index) => { element.inert = states[index] ?? false; });
+			if (previous instanceof HTMLElement && previous.isConnected) previous.focus();
+		};
+	}, []);
+
 	// Plain dim backdrop (no blur — nothing decorative); a genuine
 	// backdrop click closes, the dialog body stops propagation.
 	return createPortal(
 		<div
+			ref={backdropRef}
 			className="fixed inset-0 z-50 flex items-center justify-center bg-background/80"
 			data-testid="settings-backdrop"
 			{...backdropDismiss}

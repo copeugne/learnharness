@@ -23,7 +23,7 @@ export class Runtimes {
     if (!UUID.test(id)) return Promise.reject(new Error('Invalid account identifier.'));
     const result = this.queue.then(() => this.start(id));
     this.queue = result.catch(() => {});
-    return result;
+    return result.then(endpoint => this.waitReady(endpoint));
   }
   async runningIDs() {
     const names = await this.command(['ps', '--filter', 'label=zone.nix.learn.tenant=1', '--format', '{{.Names}}']);
@@ -85,6 +85,9 @@ export class Runtimes {
     if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error('The learning space has no private listening port.');
     const secret = inspect.Config.Env.find(entry => entry.startsWith('LH_WEB_RUNTIME_SECRET='))?.slice('LH_WEB_RUNTIME_SECRET='.length);
     if (!/^[0-9a-f]{64}$/.test(secret ?? '')) throw new Error('The learning space has no private request capability.');
+    return { port, name, secret };
+  }
+  async waitReady({ port, name, secret }) {
     for (let attempt = 0; attempt < 60; attempt++) {
       try {
         const response = await fetch(`http://127.0.0.1:${port}/api/settings`, { headers: { 'x-learnharness-web': secret }, signal: AbortSignal.timeout(1000) });

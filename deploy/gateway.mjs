@@ -107,9 +107,9 @@ export function createGateway({ origin, accounts, runtimes, sourceFile, aboutDir
           // Only validation/capacity messages are safe to show; storage errors stay server-side.
           const allowed = /^(Use |That username |Registration is |Sign-in is )/.test(error.message);
           if (!allowed) logger.error('Account operation failed:', error.message);
-          return html(response, allowed ? 400 : 503, authPage(registration, allowed ? error.message : 'Account storage is unavailable. Please try again later.'));
+          return html(response, allowed ? 400 : 503, authPage(registration, allowed ? error.message : 'Account storage is unavailable. Please try again later.', fields.username));
         }
-        if (!user) return html(response, 401, authPage(false, 'The username or password is incorrect.'));
+        if (!user) return html(response, 401, authPage(false, 'The username or password is incorrect.', fields.username));
         return redirect(response, '/', { 'Set-Cookie': sessionCookie(accounts.session(user)) });
       }
       if (!account) {
@@ -135,6 +135,7 @@ export function createGateway({ origin, accounts, runtimes, sourceFile, aboutDir
       response.on('close', () => { currentActivity.open--; currentActivity.last = Date.now(); });
       const endpoint = await ready(account.id);
       if (response.destroyed || request.destroyed) return;
+      if (accounts.authenticate(token)?.id !== account.id) return apiError(response, 401, 'Sign in to continue.');
       const connectionHeaders = new Set(String(request.headers.connection ?? '').split(',').map(value => value.trim().toLowerCase()));
       const headers = Object.fromEntries(Object.entries(request.headers).filter(([name]) => !HOP.has(name) && !connectionHeaders.has(name) && !name.startsWith('x-forwarded-') && !name.startsWith('x-middleware-') && !name.startsWith('x-learnharness-') && !name.startsWith('x-lh-') && !['forwarded', 'authorization', 'cookie'].includes(name)));
       // The subscription control's fixed marker is a CSRF guard, not a secret or tenant identity.
