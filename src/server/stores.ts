@@ -10,6 +10,9 @@ import { chatStore } from "../store/chats.ts";
 import { graphStore } from "../store/graph.ts";
 import { jobStore } from "../store/jobs.ts";
 import { settingsStore } from "../store/settings.ts";
+import { createLearnerFiles } from "../store/learner-files.ts";
+import os from "node:os";
+import path from "node:path";
 import { resolveSettings, type EffectiveSettings } from "../core/settings-resolution.ts";
 /** The wired adapters. Satisfies core/graph.ts's GraphDeps structurally. */
 export const stores = {
@@ -17,6 +20,7 @@ export const stores = {
 	graphStore,
 	jobStore,
 	settingsStore,
+	learnerFiles: createLearnerFiles(path.join(os.homedir(), "files")),
 };
 
 export type Stores = typeof stores;

@@ -651,3 +651,43 @@ test("private leases bind active account, authority revision and raw visible mod
 		assert.equal((await f.rawLease(false, expected)).accountId, catalog.accountId);
 	} finally { f.service.close(); }
 });
+
+test('remote browser redirect uses the original PKCE callback and rejects arbitrary URLs, wrong state and replay', async () => {
+  const f = fixture();
+  try {
+    await f.service.login();
+    const callback = new URL(f.url.searchParams.get('redirect_uri')!);
+    callback.search = new URLSearchParams({ state: f.url.searchParams.get('state')!, code: 'scratch-code', client_id: 'oaiapp_scratch' }).toString();
+    for (const value of ['https://example.invalid/auth/callback', callback.href.replace('/auth/callback', '/different'), callback.href + '#fragment', 'not a URL', 'x'.repeat(8193)]) {
+      await assert.rejects(f.service.completeLogin(value));
+    }
+    const wrongState = new URL(callback); wrongState.searchParams.set('state', 'wrong');
+    await assert.rejects(f.service.completeLogin(wrongState.href));
+    const duplicated = new URL(callback); duplicated.searchParams.append('code', 'another-code');
+    await assert.rejects(f.service.completeLogin(duplicated.href));
+    assert.equal(f.requests.length, 0, 'invalid pasted redirects must never exchange a code');
+    await f.service.completeLogin(callback.href);
+    await f.changed.promise;
+    const status = await f.service.status();
+    assert.equal(status.pending, false);
+    assert.equal(status.accounts[0].connected, true);
+    assert.equal(f.requests.find(r => r.url === tokenUrl)!.form!.get('redirect_uri'), f.url.searchParams.get('redirect_uri'));
+    assert(!JSON.stringify(status).includes('scratch-code'));
+    await assert.rejects(f.service.completeLogin(callback.href));
+  } finally { f.service.close(); }
+});
+
+test('cancelled remote-browser redirect cannot complete a replacement login attempt', async () => {
+  const f = fixture();
+  try {
+    await f.service.login();
+    const callback = new URL(f.url.searchParams.get('redirect_uri')!);
+    callback.search = new URLSearchParams({ state: f.url.searchParams.get('state')!, code: 'scratch-code', client_id: 'oaiapp_scratch' }).toString();
+    f.service.cancelLogin();
+    await assert.rejects(f.service.completeLogin(callback.href));
+    await f.service.login();
+    await assert.rejects(f.service.completeLogin(callback.href));
+    assert.equal(f.requests.length, 0);
+    assert.equal((await f.service.status()).pending, true);
+  } finally { f.service.close(); }
+});

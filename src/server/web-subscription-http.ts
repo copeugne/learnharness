@@ -47,7 +47,7 @@ export async function subscriptionControlsResponse(request: Request): Promise<Re
 		const fields = command as Record<string, unknown>;
 		const providerId = fields.providerId;
 		if (providerId !== "chatgpt" && !NATIVE_SUBSCRIPTIONS.some((provider) => provider.providerId === providerId)) return error("Unsupported connection.", 400);
-		const allowed = providerId === "chatgpt" ? ["login", "cancel", "select", "disconnect", "logout", "consent"] : ["login", "cancel", "respond", "open", "retry", "disconnect", "consent"];
+		const allowed = providerId === "chatgpt" ? ["login", "complete_login", "cancel", "select", "disconnect", "logout", "consent"] : ["login", "cancel", "respond", "open", "retry", "disconnect", "consent"];
 		if (typeof fields.op !== "string" || !allowed.includes(fields.op)) return error("Unsupported control.", 400);
 		return Response.json(await webSubscriptionOwner().control(providerId as string, fields, subscriptionRequestOrigin(request)!), { headers: HEADERS });
 	} catch {

@@ -19,3 +19,6 @@ xai-credentials.json*
 
 # dev-fresh launcher scratch (fresh-user sim): disposable per launch
 .fresh-data/
+
+# Operator-only infrastructure snapshots; never part of corresponding source.
+reports/private/

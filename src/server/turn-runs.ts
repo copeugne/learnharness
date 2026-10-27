@@ -76,6 +76,10 @@ export function runningTurn(chatId: string): PiTurnHandle | undefined {
 	return runs().get(chatId);
 }
 
+export function runningTurnCount(): number {
+	return runs().size;
+}
+
 /** The remote kill: any client (original sender, reattached viewer, future
  *  surfaces) may stop a running turn. not_running mirrors abortJob's
  *  honest 409 — there was nothing to abort, the caller refetches. */

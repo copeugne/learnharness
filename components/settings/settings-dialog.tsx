@@ -299,7 +299,7 @@ export function SettingsDialogBody({
 					</Hint>
 			</header>
 
-			<div className="flex min-h-0 flex-1">
+			<div className="lh-settings-layout flex min-h-0 flex-1">
 				{/* Left nav — text-only, the session-list mono language,
 					    active = bg-accent. */}
 				<nav
@@ -366,6 +366,14 @@ export function SettingsDialogBody({
 											void write("general", { ...record.general, autoUpdate: on })
 										}
 									/>
+									{process.env.LH_WEB_HOSTED === "1" && (
+										<div className="flex flex-wrap gap-5 px-6 py-4 text-sm">
+											<a href="/auth/account" className="underline underline-offset-4">Account and sign out</a>
+											<a href="/files" className="underline underline-offset-4">Learner files</a>
+											<a href="/about/" className="underline underline-offset-4">About LearnHarness</a>
+											<a href="/source" className="underline underline-offset-4">Source (AGPL-3.0)</a>
+										</div>
+									)}
 								</SettingsSection>
 							)}
 							{active === "keys" && (

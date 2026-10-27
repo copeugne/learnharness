@@ -1,0 +1,28 @@
+[Unit]
+Description=LearnHarness account and tenant gateway
+After=network-online.target docker.service srv-learnharness-tenants.mount
+Requires=docker.service srv-learnharness-tenants.mount
+
+[Service]
+Type=simple
+User=learn-gateway
+Group=learn-gateway
+SupplementaryGroups=docker
+EnvironmentFile=/etc/learnharness/gateway.env
+ExecStart=/usr/bin/node /opt/learnharness/current/deploy/gateway.mjs
+Restart=on-failure
+RestartSec=3
+UMask=0077
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/learnharness-gateway /srv/learnharness
+PrivateTmp=true
+# The narrowly scoped sudo provisioner creates tenant quota directories.
+# The gateway has no host data mounts; application containers never see it.
+LimitNOFILE=16384
+TasksMax=128
+MemoryMax=256M
+CPUQuota=100%
+
+[Install]
+WantedBy=multi-user.target

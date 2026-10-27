@@ -81,7 +81,7 @@ declare global {
 	}
 }
 
-const SidebarContext = createContext<{ open: boolean; toggle: () => void }>({
+const SidebarContext = createContext<{ open: boolean; toggle: () => void; mobile?: boolean }>({
 	open: false,
 	toggle: () => {},
 });
@@ -103,6 +103,14 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
 	const [open, setOpen] = useState(false);
 	const [narrow, setNarrow] = useState(false);
 	const [mounted, setMounted] = useState(false);
+	const [mobile, setMobile] = useState(false);
+	useEffect(() => {
+		if (process.env.LH_WEB_HOSTED !== "1") return;
+		const query = window.matchMedia("(max-width: 640px)");
+		const update = () => setMobile(query.matches);
+		update(); query.addEventListener("change", update);
+		return () => query.removeEventListener("change", update);
+	}, []);
 
 	useEffect(() => {
 		// Electron shell detection (merged chrome, 2026-09-17): keys the
@@ -127,7 +135,7 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
 
 		const stored = localStorage.getItem(STORAGE_KEY);
 		// Default: open (first run introduces the sidebar).
-		setOpen(stored === null ? true : stored === "1");
+		setOpen(stored === null ? !(process.env.LH_WEB_HOSTED === "1" && window.innerWidth <= 640) : stored === "1");
 		setMounted(true);
 		return () => off?.();
 	}, []);
@@ -176,7 +184,7 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
 	}, [toggle]);
 
 	return (
-		<SidebarContext.Provider value={{ open: open && !narrow, toggle }}>
+		<SidebarContext.Provider value={{ open: open && !narrow, toggle, mobile }}>
 			{/* transitions gated on mount: no slide-in flash on page load */}
 			<div className={cn("flex h-dvh", mounted && "[&_.sidebar-motion]:transition-[width,margin,opacity]")}>{children}</div>
 		</SidebarContext.Provider>
@@ -387,7 +395,14 @@ export type SessionKindFilter = "teach" | "all" | "practice";
 const KIND_FILTER_KEY = "lh:session-kind-filter";
 
 function SessionsSidebar() {
-	const { open, toggle } = useSidebar();
+	const { open, toggle, mobile } = useSidebar();
+	const asideRef = useRef<HTMLElement>(null);
+	useEffect(() => {
+		if (!mobile || !open) return;
+		const previous = document.activeElement;
+		asideRef.current?.querySelector<HTMLButtonElement>('button[aria-label="Close sidebar"]')?.focus();
+		return () => { if (previous instanceof HTMLElement && previous.isConnected) previous.focus(); };
+	}, [mobile, open]);
 	const [chats, setChats] = useState<ChatListItem[] | null>(null);
 	const [query, setQuery] = useState("");
 	const [kindFilter, setKindFilter] = useState<SessionKindFilter>("all");
@@ -644,8 +659,23 @@ function SessionsSidebar() {
 
 	return (
 		<aside
+			ref={asideRef}
 			className={cn("sidebar-motion shrink-0 overflow-hidden duration-200", open ? "w-72" : "w-0")}
 			aria-hidden={!open}
+			inert={!open}
+			role={mobile ? "dialog" : undefined}
+			aria-modal={mobile && open ? true : undefined}
+			aria-label={mobile ? "Session navigation" : undefined}
+			onKeyDown={(event) => {
+				if (!mobile || !open || event.defaultPrevented || document.querySelector("[data-lh-menu]")) return;
+				if (event.key === "Escape") { event.stopPropagation(); toggle(); }
+				if (event.key === "Tab") {
+					const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('a[href],button:not([disabled]),input:not([disabled]),[tabindex="0"]')).filter(control => control.getClientRects().length > 0);
+					const first = controls[0], last = controls.at(-1);
+					if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+					else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+				}
+			}}
 		>
 			<div className="flex h-full w-72 flex-col border-r bg-background">
 				{/* LH wordmark — the owner's header; close toggle sits at the edge.
@@ -941,10 +971,18 @@ function SessionsSidebar() {
 
 /** The app frame: sidebar inline + content. Rendered once in the root layout. */
 export function AppShell({ children }: { children: React.ReactNode }) {
+	const { open, mobile, toggle } = useSidebar();
+	const pathname = usePathname();
+	const lastPath = useRef(pathname);
+	useEffect(() => {
+		if (pathname !== lastPath.current && mobile && open) toggle();
+		lastPath.current = pathname;
+	}, [pathname, mobile, open, toggle]);
 	return (
 		<SettingsDialogProvider>
 			<SessionsSidebar />
-			<main className="min-w-0 flex-1">{children}</main>
+			{mobile && open && <button type="button" tabIndex={-1} aria-label="Close session navigation" onClick={toggle} className="fixed inset-0 z-30 bg-background/70" />}
+			<main className="min-w-0 flex-1" inert={!!mobile && open}>{children}</main>
 			{/* The single document-level keydown listener (keyboard wave A) —
 			    after the content in the tree, but it's window-level so order only
 			    matters for the events it dispatches, never for DOM priority. */}

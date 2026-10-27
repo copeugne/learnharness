@@ -273,7 +273,8 @@ function createChatGPT({ store, openExternal, fetch: request = globalThis.fetch,
 			finish();
 			notify();
 		};
-		pending = { abort, cancel };
+		const attempt = { abort, cancel };
+		pending = attempt;
 		lastError = null;
 		notify();
 		try {
@@ -282,6 +283,7 @@ function createChatGPT({ store, openExternal, fetch: request = globalThis.fetch,
 				listener.listen(0, "127.0.0.1", resolve);
 			});
 			const redirectUri = `http://127.0.0.1:${listener.address().port}/auth/callback`;
+			attempt.callbackURL = redirectUri;
 			listener.on("request", async (req, res) => {
 				let callback;
 				try { callback = new URL(req.url || "/", redirectUri); }
@@ -350,6 +352,26 @@ function createChatGPT({ store, openExternal, fetch: request = globalThis.fetch,
 		return snapshot();
 	}
 	function cancelLogin() { pending?.cancel(); return snapshot(); }
+	async function completeLogin(input) {
+		const attempt = pending;
+		if (!attempt?.callbackURL || typeof input !== "string" || input.length > 8192) throw fail("identity");
+		let target;
+		try { target = new URL(input); } catch { throw fail("identity"); }
+		const expected = new URL(attempt.callbackURL);
+		if (target.origin !== expected.origin || target.pathname !== expected.pathname || target.username || target.password || target.hash || pending !== attempt) throw fail("identity");
+		// Reuse the exact PKCE/state/nonce callback handler. Only this attempt's
+		// own loopback listener can receive a pasted remote-browser redirect.
+		await new Promise((resolve, reject) => {
+			const request = http.get(target, { timeout: 5000 }, (response) => {
+				response.resume();
+				response.on("end", () => response.statusCode === 200 ? resolve() : reject(fail("identity")));
+				response.on("error", () => reject(fail("identity")));
+			});
+			request.on("error", () => reject(fail("identity")));
+			request.on("timeout", () => request.destroy());
+		});
+		return snapshot();
+	}
 
 	function authorized(background, expected, capturedEpoch) {
 		const account = active();
@@ -536,7 +558,7 @@ function createChatGPT({ store, openExternal, fetch: request = globalThis.fetch,
 	function close() { closed = true; pending?.cancel(); stop(); }
 	function pause() { paused = true; pending?.cancel(); stop(); notify(); }
 	function resume() { paused = false; if (!storageDenied) suspended = false; notify(); }
-	return { status, login, cancelLogin, lease, models, select, consent, disconnect, logout, close, pause, resume, stamp };
+	return { status, login, completeLogin, cancelLogin, lease, models, select, consent, disconnect, logout, close, pause, resume, stamp };
 }
 
 module.exports = { createChatGPT, fileStore, publicError, allowedAuthEndpoint, SCOPES, validateState };

@@ -1,3 +1,41 @@
+# LearnHarness browser port
+
+This branch targets **https://learn.nix.zone**, with public registration and a private learning space for each account. The original desktop documentation is retained below. Current deployment and verification status are tracked in [the port ledger](reports/port-ledger.md).
+
+The port retains the original React interface, teaching and practice agents, prompts, knowledge graph, settings, provider integrations, usage accounting, research, visuals and demos. It uses a curated Next.js standalone runtime. The original website is captured under `public/about-site` for `/about/`, with its screenshots, fonts, diagrams, attribution and a note explaining browser storage. Its manifest records source and served asset hashes.
+
+Each learner runs in a separate unprivileged ARM64 container. Learning records and provider keys live on the VPS in that account's private quota directory. The gateway strips its login cookie and incoming tenant identifiers before proxying. Generated demos retain their opaque iframe sandbox, and system Chromium verifies demos in the private container. Public HTTPS access supports providers and research; sibling containers, host services, private networks and cloud metadata are blocked.
+
+The current VPS allocation supports twelve registered accounts and eight active runtimes. Each account has 96 MiB of persistent storage; each runtime has a 1 GiB memory ceiling. A dedicated 1.5 GiB filesystem reserves tenant storage separately from host headroom. Runtimes suspend after thirty minutes without open requests, only after checking for active turns, jobs, extraction and compaction. Records survive restart.
+
+General settings links to **Learner files** for private notes, PDF and image uploads. Copy the displayed path into a session to let the existing agent tools read the exact file. Uploading alone does not send it to a provider. Limits are 8 MiB per file and 16 MiB per request. Remote ChatGPT sign-in can accept the final loopback redirect URL through the original state, PKCE and nonce verifier; Copilot and Grok retain their device/prompt flows.
+
+### Verification and hosting
+
+Run `npm ci --ignore-scripts --no-audit --no-fund`, `npm test`, `node --test deploy/*.test.mjs`, `npm run typecheck` and `npm run lint`. The application suite and deployment tests cover different boundaries. `deploy/verify-isolation.mjs` checks real VPS containers, private records, filesystem/network isolation, quotas, Chromium and restart using disposable QA profiles. Offline checks do not establish live provider sign-in or teaching.
+
+Build on ARM64 with `docker build -f deploy/Dockerfile -t learnharness:<release> .`. The Node base image is pinned; compiler and dependency scratch use BuildKit tmpfs. Keep reviewed releases under `/opt/learnharness/releases/<release>`. Run `deploy/setup-host.sh` as root with the release directory to prepare quota storage, the narrow provisioning helper and tenant network rules. Existing applications and Docker networks are preserved.
+
+Install `/etc/learnharness/gateway.env`, root-owned at mode 0600:
+
+```ini
+LH_PUBLIC_ORIGIN=https://learn.nix.zone
+LH_GATEWAY_STATE=/var/lib/learnharness-gateway
+LH_TENANT_IMAGE=sha256:<verified-image-id>
+LH_SOURCE_ARCHIVE=/opt/learnharness/current/source.tar.gz
+LH_ABOUT_DIRECTORY=/opt/learnharness/current/public/about-site
+LH_MAX_ACCOUNTS=12
+LH_MAX_ACTIVE=8
+```
+
+Publish the exact committed source with `git archive --format=tar.gz --prefix=learnharness/ HEAD > source.tar.gz` in the release directory. The gateway exposes it at `/source` under AGPL-3.0. Start `learn-gateway.service`, install and validate `deploy/nginx.conf`, then add the hostname to the existing Cloudflare Tunnel and DNS using the `cf` CLI. The gateway listens on loopback port 3310 and Nginx on loopback port 8080. Tenant ports and the Docker socket must remain private.
+
+There is no email password recovery. The owner can stop the gateway, run `deploy/manage-accounts.mjs reset-password <username>` with `LH_GATEWAY_STATE` set and the replacement password on stdin, then restart it. Do not put passwords in command arguments. Recovery revokes old sessions while retaining learning records and provider connections.
+
+For rollback, retain the previous release and image, switch the `current` symlink and gateway image setting back, then restart the gateway. Already running tenants keep their image until quiescent; stopped tenants are recreated from the selected image with the same quota directory. Preserve tenant directories and the quota filesystem during rollback.
+
+---
+
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/assets/lh_banner_dark.png">

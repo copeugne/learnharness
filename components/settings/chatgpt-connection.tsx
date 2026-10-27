@@ -8,7 +8,7 @@ import { Toggle } from "./controls";
 import { useChatGPTBridge } from "./subscription-client";
 
 export const CHATGPT_NOTICE = "LearnHarness stores your ChatGPT account details and credentials in an unencrypted local file on this device. When this connection is used, relevant conversation context, learning material, and tool results are sent directly to OpenAI. ChatGPT plan limits apply; any additional credits are authorized and managed in ChatGPT, not LearnHarness.";
-export function chatGPTNotice(web = false): string { return web ? `${CHATGPT_NOTICE.replace("on this device", "on the machine running LearnHarness")} Complete ChatGPT sign-in in a browser on that same machine.` : CHATGPT_NOTICE; }
+export function chatGPTNotice(web = false): string { return web ? `${CHATGPT_NOTICE.replace("on this device", "on the machine running LearnHarness")} Complete sign-in in your browser. If the final redirect cannot open, paste its full URL into LearnHarness.` : CHATGPT_NOTICE; }
 export const CHATGPT_BACKGROUND_HINT = "Background work counts toward your ChatGPT plan usage.";
 const BACKGROUND_LABEL = "Allow background use for all ChatGPT accounts";
 const REVOCATION_WARNING = "Account disconnected locally. Remote revocation could not be confirmed.";
@@ -53,6 +53,9 @@ export function ChatGPTUIProvider({ children }: { children: React.ReactNode }) {
 	const [background, setBackground] = useState(true);
 	const [backgroundDirty, setBackgroundDirty] = useState(false);
 	const [registration, setRegistration] = useState("");
+	const [redirectURL, setRedirectURL] = useState("");
+	const [completingLogin, setCompletingLogin] = useState(false);
+	useEffect(() => { if (!status.pending) setRedirectURL(""); }, [status.pending]);
 	const operation = useRef<"login" | "cancel" | "change" | "disconnect" | null>(null);
 	const generation = useRef(0);
 	const statusSequence = useRef(0);
@@ -293,6 +296,22 @@ export function ChatGPTUIProvider({ children }: { children: React.ReactNode }) {
 				</div>
 				{!status.available && <p className="mt-3 text-xs text-muted-foreground">ChatGPT sign-in is available only in the desktop app. API-key connections remain available here.</p>}
 				{status.pending && <p role="status" className="mt-3 text-xs text-muted-foreground">Waiting for browser sign-in…</p>}
+				{web && status.pending && bridge?.completeLogin && <form className="mt-3" onSubmit={async (event) => {
+					event.preventDefault();
+					const completeLogin = bridge.completeLogin;
+					if (completingLogin || !completeLogin) return;
+					setCompletingLogin(true); setError(null);
+					try {
+						const next = await completeLogin(redirectURL.trim());
+						setRedirectURL(""); receive.current(next);
+					} catch { setError("The sign-in redirect could not be verified. Check the complete URL and try again."); }
+					finally { setCompletingLogin(false); }
+				}}>
+					<label htmlFor="chatgpt-redirect" className="block text-xs text-foreground">Final redirect URL</label>
+					<p className="mt-1 text-xs text-muted-foreground">If the sign-in tab ends at an unreachable 127.0.0.1 address, paste that full address here to finish securely.</p>
+					<input id="chatgpt-redirect" type="url" autoComplete="off" spellCheck={false} maxLength={8192} required value={redirectURL} onChange={(event) => setRedirectURL(event.target.value)} className="mt-2 w-full rounded-sm border border-border bg-background px-2 py-2 text-base text-foreground" />
+					<Button type="submit" size="sm" className="mt-2" disabled={completingLogin}>{completingLogin ? "Verifying…" : "Finish sign-in"}</Button>
+				</form>}
 				{context.error && <p role="alert" className="mt-3 text-xs text-red-400">{context.error}</p>}
 				{dialog.kind === "manage" && managed && <div className="mt-4 flex flex-wrap items-center justify-between gap-3" data-testid="chatgpt-account-strip">
 					<div data-testid="chatgpt-managed-identity" className="flex min-w-0 items-center gap-2 text-xs text-foreground">

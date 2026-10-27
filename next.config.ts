@@ -5,7 +5,7 @@ const pkg = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), 
 
 const nextConfig: NextConfig = {
 	// Public build metadata only; no new runtime Electron version API.
-	env: { LH_VERSION: pkg.version, LH_HOMEPAGE: pkg.homepage },
+	env: { LH_VERSION: pkg.version, LH_HOMEPAGE: pkg.homepage, ...(process.env.LH_WEB_HOSTED === "1" ? { LH_WEB_HOSTED: "1" } : {}) },
 	// Desktop target (Electron wrapper, 2026-09-17): standalone output = a
 	// self-contained .next/standalone/server.js the Electron shell spawns
 	// on 127.0.0.1. Harmless for plain web deploys (extra build output).

@@ -1,0 +1,14 @@
+[Unit]
+Description=LearnHarness tenant network isolation
+Requires=docker.service
+After=docker.service
+Before=learn-gateway.service
+PartOf=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/learnharness/current/deploy/tenant-network.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

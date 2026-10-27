@@ -48,6 +48,7 @@ export function createWebChatGPTBridge(hub: Hub): ChatGPTControlBridge {
 	return {
 		status: async () => (await status()).chatgpt,
 		login: (id) => withBrowser(() => control<ChatGPTStatus>("chatgpt", "login", { id })),
+		completeLogin: (url) => call("complete_login", { url }),
 		cancel: () => call("cancel"), select: (id) => call("select", { id }),
 		disconnect: (id) => call("disconnect", { id }), logout: (id) => call("logout", { id }),
 		consent: (enabled) => call("consent", { enabled }),

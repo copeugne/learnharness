@@ -598,3 +598,42 @@ body {
 	outline: 1px solid var(--border);
 	border-radius: 0.25rem;
 }
+
+/* Hosted phone layouts retain the desktop skin and give controls the full
+   reading width. Electron's native narrow-window behavior stays separate. */
+@media (max-width: 640px) {
+  .lh-web .sidebar-motion {
+    position: fixed;
+    inset-block: 0;
+    left: 0;
+    z-index: 40;
+  }
+  .lh-web [data-testid="settings-dialog"] {
+    max-height: calc(100dvh - 32px);
+  }
+  .lh-web .lh-settings-layout {
+    flex-direction: column;
+  }
+  .lh-web [data-testid="settings-nav"] {
+    width: 100%;
+    flex-direction: row;
+    overflow-x: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .lh-web [data-testid="settings-nav"] button {
+    flex-shrink: 0;
+    white-space: nowrap;
+    min-height: 44px;
+  }
+  .lh-web [data-testid="settings-content"] {
+    min-height: 0;
+  }
+  .lh-web :is(input, textarea, select) {
+    font-size: max(16px, 1em);
+  }
+  .lh-web :is(button[aria-label="Close sidebar"], button[aria-label="Open sidebar"], button[aria-label="Close settings"]) {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}

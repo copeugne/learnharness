@@ -1,0 +1,73 @@
+{
+  "origin": "https://learnharness.ai",
+  "capturedAt": "2026-10-27T17:33:15.262Z",
+  "homeSHA256": "2b494d2b9a8b728b796e8e16b3367b467b50e44f623c956b2dbe2df8a6d828ea",
+  "modifications": [
+    "Local About and asset paths",
+    "Browser-app navigation link",
+    "Browser hosting and privacy note"
+  ],
+  "assets": [
+    {
+      "path": "/assets/knowledge-graph.png",
+      "originalSHA256": "4b0cf326cf01e073c2cc2d641838b0b5c57ca7af3f0695612871799772e79b21",
+      "servedSHA256": "4b0cf326cf01e073c2cc2d641838b0b5c57ca7af3f0695612871799772e79b21",
+      "bytes": 1563536
+    },
+    {
+      "path": "/assets/lesson-map.png",
+      "originalSHA256": "1a8451460db60467fa8815cf035016ee5b74e659e8161fe762dea7c0e1b554ec",
+      "servedSHA256": "1a8451460db60467fa8815cf035016ee5b74e659e8161fe762dea7c0e1b554ec",
+      "bytes": 173525
+    },
+    {
+      "path": "/assets/teaching-session.png",
+      "originalSHA256": "6d816a1a0eab19b0d978970f39100ba517940cb6e44010256120a3fd0ea8de62",
+      "servedSHA256": "6d816a1a0eab19b0d978970f39100ba517940cb6e44010256120a3fd0ea8de62",
+      "bytes": 757503
+    },
+    {
+      "path": "/fonts/jetbrains-mono.ttf",
+      "originalSHA256": "a0bf60ef0f83c5ed4d7a75d45838548b1f6873372dfac88f71804491898d138f",
+      "servedSHA256": "a0bf60ef0f83c5ed4d7a75d45838548b1f6873372dfac88f71804491898d138f",
+      "bytes": 273900
+    },
+    {
+      "path": "/fonts/lh-web-math-italic.woff",
+      "originalSHA256": "ec866ee9ff4998a289e2cbc0f2ec863cc7fef8630902aeae882f4c4fda8ed8e0",
+      "servedSHA256": "ec866ee9ff4998a289e2cbc0f2ec863cc7fef8630902aeae882f4c4fda8ed8e0",
+      "bytes": 19396
+    },
+    {
+      "path": "/fonts/lh-web-math-main.woff",
+      "originalSHA256": "6e4c2e9b7cbe4bc0ea46502a19c17005f227787f805440ca1f319c2867b8ac42",
+      "servedSHA256": "6e4c2e9b7cbe4bc0ea46502a19c17005f227787f805440ca1f319c2867b8ac42",
+      "bytes": 34180
+    },
+    {
+      "path": "/fonts/lh-web-numeral-bold.woff",
+      "originalSHA256": "a89b19451ecaa03c28827fa6beb7dc40e49de875c04b52524e39e544ccbbf8c3",
+      "servedSHA256": "a89b19451ecaa03c28827fa6beb7dc40e49de875c04b52524e39e544ccbbf8c3",
+      "bytes": 34504
+    },
+    {
+      "path": "/fonts/source-sans-3-black.ttf",
+      "originalSHA256": "7b603e9927923dd0eb72b5ba6192a676cc66d7f9e4f88a4efb34119dbf2a855a",
+      "servedSHA256": "7b603e9927923dd0eb72b5ba6192a676cc66d7f9e4f88a4efb34119dbf2a855a",
+      "bytes": 379484
+    },
+    {
+      "path": "/mark.svg",
+      "originalSHA256": "57d44b2f9638b1d0991918c05f9930c252378345c6090c27c5ff799d31f7c322",
+      "servedSHA256": "57d44b2f9638b1d0991918c05f9930c252378345c6090c27c5ff799d31f7c322",
+      "bytes": 1600
+    },
+    {
+      "path": "/styles.css",
+      "originalSHA256": "00652780bb9c5dd0aa70321c632292fc58525d12cbed7c44567e5647a032e6f3",
+      "servedSHA256": "96b655a6bc9bbcefb4ec8c08a4450179ebd779fc4dc2827cbba121c7a611856c",
+      "bytes": 31590
+    }
+  ],
+  "indexSHA256": "8a085b702db1d54f9f6c0fa4b6db6551d12f4891f923d3a03f958f7844463cf7"
+}
