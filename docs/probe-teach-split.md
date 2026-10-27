@@ -181,3 +181,24 @@ free-text correctAnswer) are expected to shrink with higher thinking
 budgets and runtime model control — but the *semantics* had to be right
 first. Model mistakes are good test material: they exercise the
 return-to-agent validation loops.
+
+## Learner-controlled diagnostic and initial plan approval
+
+A successful `resume_probe` returns either agent to probing without deleting
+history or maps. It stops the run and queues an idle-only phase handoff.
+The next request constructs the prober; a new `probe_done` can conclude
+again, with a wake ID unique to its call.
+
+New initial `plan_init` results carry `approvalRequired: true`. Present
+`ask_user_question` with `purpose: "plan_review"` and single-select values
+`accept`, `revise`, and `probe`, with labels in the learner's language.
+Only an explicit `accept` authorizes that presentation. Stale answers,
+dismissals, Other and free text never imply approval. `probe` selects the
+prober before generation; `revise` keeps planning open. Quiz and explain
+reject unapproved plans, including in the presenting run. Rejected calls
+do not start teaching. Mid-lesson rewrites continue without another review
+unless diagnostic reopened. Old records retain their established behavior
+until reopening; upgrading never rewrites private transcripts or trees.
+
+Regressions: `tests/rejected-question-phase.test.ts`,
+`tests/diagnostic-reopen.test.ts`, and `tests/plan-approval.test.ts`.

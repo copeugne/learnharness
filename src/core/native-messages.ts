@@ -42,7 +42,7 @@ import {
 	NEXT_PROBLEM_TEXT,
 	THINKING_LABEL,
 } from "./contracts/chat.ts";
-import { compactAnswerForModel, type QuestionAnswerData } from "./question-core.ts";
+import { planReviewChoice, compactAnswerForModel, type QuestionAnswerData } from "./question-core.ts";
 import { activeCompactionOf, keptIndexFor } from "./compaction.ts";
 
 /** The hard-invariant wording for an aborted turn's unanswered calls —
@@ -675,16 +675,20 @@ export function danglingQuestionOf(
  *  error, and must not explicitly refuse with details.ok:false. Older
  *  clean acknowledgments without ok:true still count. No history changes. */
 export function probeDoneResultIds(messages: readonly LhMessage[]): Set<string> {
+	return successfulToolResultIds(messages, "probe_done");
+}
+
+export function successfulToolResultIds(messages: readonly LhMessage[], tool: string): Set<string> {
 	const calls = new Set<string>();
 	const results = new Set<string>();
 	for (const m of messages) {
 		if (m.role === "assistant") {
 			if (m.stopReason === "error" || m.stopReason === "aborted") continue;
 			for (const block of m.content) {
-				if (block.type === "toolCall" && block.name === "probe_done") calls.add(block.id);
+				if (block.type === "toolCall" && block.name === tool) calls.add(block.id);
 			}
 		} else if (
-			m.role === "toolResult" && m.toolName === "probe_done" &&
+			m.role === "toolResult" && m.toolName === tool &&
 			calls.has(m.toolCallId) && !m.isError &&
 			(m.details as { ok?: unknown } | null | undefined)?.ok !== false
 		) {
@@ -694,10 +698,35 @@ export function probeDoneResultIds(messages: readonly LhMessage[]): Set<string> 
 	return results;
 }
 
-/** The probe→teach construction seam (chat-handler and the tool guard):
- *  only a concluded call plus a matching successful result means teach. */
+/** Matching plan review answers, never inferred from prose or arbitrary option values. */
+export function planReviewResults(messages: readonly LhMessage[]): Map<string, "accept" | "revise" | "probe"> {
+	const calls = new Map<string, unknown>();
+	const decisions = new Map<string, "accept" | "revise" | "probe">();
+	for (const message of messages) {
+		if (message.role === "assistant" && message.stopReason !== "error" && message.stopReason !== "aborted") {
+			for (const block of message.content) {
+				if (block.type === "toolCall" && block.name === "ask_user_question") calls.set(block.id, block.arguments);
+			}
+		} else if (message.role === "toolResult" && message.toolName === "ask_user_question" && !message.isError) {
+			const decision = planReviewChoice(calls.get(message.toolCallId), message.details);
+			if (decision) decisions.set(message.id, decision);
+		}
+	}
+	return decisions;
+}
+
+/** A successful conclusion selects the teacher until a successful reopening
+ * or an explicit diagnostic choice in a plan review selects the prober. */
 export function hasProbeDone(messages: readonly LhMessage[]): boolean {
-	return probeDoneResultIds(messages).size > 0;
+	const done = probeDoneResultIds(messages);
+	const resumed = successfulToolResultIds(messages, "resume_probe");
+	const reviews = planReviewResults(messages);
+	let concluded = false;
+	for (const message of messages) {
+		if (done.has(message.id)) concluded = true;
+		if (resumed.has(message.id) || reviews.get(message.id) === "probe") concluded = false;
+	}
+	return concluded;
 }
 
 /** Every toolResult id in the record — answer-event validation (the call

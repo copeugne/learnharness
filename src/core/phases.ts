@@ -1,3 +1,4 @@
+import { planReviewChoice } from "./question-core.ts";
 /**
  * Phase derivation (docs/probe-teach-split.md §4) — EXPLICIT EVENTS, never
  * occupancy. The probe→teach agent split (2026-09-11) gave the first
@@ -30,7 +31,8 @@
  * structural); `phaseAt3Lh` folds the NATIVE record (server summaries,
  * tests) — probe→plan advances at the probe_done RESULT message, plan→teach
  * at the assistant message carrying the first nodeId-tagged quiz CALL.
- * Both are strictly sequential; the two derivations agree on every settled
+ * Successful diagnostic reopening returns either fold to probe. The two
+ * derivations agree on every settled
  * record (a call's part projects into the same view boundary).
  *
  * Pure: only browser-safe core helpers — safe on server, client, and tests.
@@ -76,10 +78,13 @@ function advance(
 ): Phase3 {
 	if (!parts) return phase;
 	for (const part of parts) {
-		// STRICTLY SEQUENTIAL: probe → plan only via a concluded probe_done,
-		// plan → teach only via the first nodeId-tagged quiz CALL (the call,
-		// not its answer — an errored-and-retried call still proves teaching
-		// began, and the retry lands in the same group anyway).
+		if (part.type === "tool-ask_user_question" && part.state === "output-available" &&
+			planReviewChoice(part.input, part.output) === "probe") phase = "probe";
+		if (part.type === "tool-resume_probe" && part.state === "output-available" &&
+			(part.output as { ok?: unknown } | undefined)?.ok === true) phase = "probe";
+		// probe → plan only via a concluded probe_done,
+		// plan → teach only via a valid nodeId-tagged question. Rejected
+		// calls remain retry context and never represent posed teaching.
 		if (
 			phase === "probe" && part.type === "tool-probe_done" && part.state === "output-available" &&
 			(part.output as { ok?: unknown } | null | undefined)?.ok !== false
@@ -91,7 +96,8 @@ function advance(
 		if (
 			phase === "plan" &&
 			(part.type === "tool-quiz" || part.type === "tool-explain") &&
-			taggedNodeId(part.input)
+			taggedNodeId(part.input) && part.state !== "output-error" &&
+			(part.output as { ok?: unknown } | null | undefined)?.ok !== false
 		) {
 			phase = "teach";
 		}
@@ -113,7 +119,7 @@ function advance(
  * between the plan presentation and the teaching block.
  */
 export function teachStepIndex(
-	parts: ReadonlyArray<{ type: string; state?: string; input?: unknown }>,
+	parts: ReadonlyArray<{ type: string; state?: string; input?: unknown; output?: unknown }>,
 ): number {
 	let stepStarts = 0; // how many step-start parts seen so far
 	let latest = -1; // index of the latest step-start
@@ -126,7 +132,8 @@ export function teachStepIndex(
 		}
 		if (
 			(part.type === "tool-quiz" || part.type === "tool-explain") &&
-			taggedNodeId(part.input)
+			taggedNodeId(part.input) && part.state !== "output-error" &&
+			(part.output as { ok?: unknown } | null | undefined)?.ok !== false
 		) {
 			// The call's governing step: 0–1 step-starts seen = the message's
 			// FIRST step → -1 (the divider belongs before the whole message);
@@ -156,7 +163,7 @@ export function phaseTimeline(messages: readonly PhaseMessage[]): Phase3[] {
 
 // ─── the native fold (Wave D: record-side phase over LhMessage[]) ───────────
 
-import { probeDoneResultIds, type LhMessage } from "./native-messages.ts";
+import { planReviewResults, probeDoneResultIds, successfulToolResultIds, type LhMessage } from "./native-messages.ts";
 
 /** The phase at `upToIndex` (inclusive; default: the last message) of a
  *  NATIVE record. probe→plan advances at the probe_done call's clean
@@ -167,19 +174,28 @@ export function phaseAt3Lh(messages: readonly LhMessage[], upToIndex?: number): 
 	let phase: Phase3 = "probe";
 	const last = Math.min(upToIndex ?? messages.length - 1, messages.length - 1);
 	const concluded = probeDoneResultIds(messages.slice(0, last + 1));
+	const resumed = successfulToolResultIds(messages.slice(0, last + 1), "resume_probe");
+	const reviews = planReviewResults(messages.slice(0, last + 1));
+	// Results project back onto their calls in the client. Match that rule
+	// even when asking for the phase at an earlier message index.
+	const rejected = new Set(messages.flatMap((m) =>
+		m.role === "toolResult" && (m.isError || (m.details as { ok?: unknown } | undefined)?.ok === false)
+			? [m.toolCallId] : [],
+	));
 	for (let i = 0; i <= last; i++) {
 		const m = messages[i]!;
 		const role = (m as { role?: string }).role;
 		if (role === "toolResult") {
+			if (resumed.has(m.id) || reviews.get(m.id) === "probe") phase = "probe";
 			if (phase === "probe" && concluded.has(m.id)) phase = "plan";
-		} else if (role === "assistant") {
-			const content = (m as { content?: ReadonlyArray<{ type?: string; name?: string; arguments?: unknown }> }).content ?? [];
+		} else if (m.role === "assistant" && m.stopReason !== "error" && m.stopReason !== "aborted") {
+			const content = (m as { content?: ReadonlyArray<{ type?: string; name?: string; id?: string; arguments?: unknown }> }).content ?? [];
 			if (phase === "plan") {
 				for (const block of content) {
 					if (
 						block.type === "toolCall" &&
 						(block.name === "quiz" || block.name === "explain") &&
-						taggedNodeId(block.arguments)
+						taggedNodeId(block.arguments) && !rejected.has(block.id ?? "")
 					) {
 						phase = "teach";
 						break;
