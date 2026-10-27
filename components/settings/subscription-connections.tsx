@@ -88,6 +88,7 @@ export function NativeSubscriptionUIProvider({ children }: { children: React.Rea
 				<p className="mt-3 text-xs leading-relaxed text-muted-foreground">{subscriptionDisconnectCopy(descriptor.label, web)}</p>
 			</> : view === "notice" ? <>
 				<p className="mt-3 text-xs leading-relaxed text-muted-foreground" data-testid="subscription-privacy-notice">{subscriptionNotice(descriptor.label, web)}</p>
+				{dialog === "openai-codex" && <p className="mt-3 text-xs leading-relaxed text-muted-foreground">Approve a short device code on OpenAI’s website. No localhost callback or URL pasting is needed. Device-code login must be enabled in your ChatGPT security settings or workspace permissions.</p>}
 				{dialog === "github-copilot" && <p className="mt-3 text-xs leading-relaxed text-muted-foreground" data-testid="copilot-policy-notice">{COPILOT_POLICY_NOTICE}</p>}
 			</> : <>
 				<div className="mt-4 flex items-center gap-3 text-xs text-foreground">

@@ -97,3 +97,22 @@ test("desktop-dev opener accepts only local action IDs, does not follow redirect
 	for (const target of ["file:///private/fixture", "http://unrelated.invalid", "https://user:pass@unrelated.invalid"]) await assert.rejects(openWebSubscriptionBrowser(action, "http://localhost:3000", { ...options, fetch: async () => new Response(null, { status: 303, headers: { Location: target } }) }));
 	assert.equal(opened.length, 1);
 });
+
+test("Codex device login uses short requests, waits for approval and never opens localhost", async () => {
+	let reads = 0;
+	window.open = () => assert.fail("device login opens a browser only on the explicit action");
+	globalThis.fetch = async (_url, options) => {
+		if (options?.method) {
+			assert.deepEqual(JSON.parse(String(options.body)), { providerId: "openai-codex", op: "login", enabled: false });
+			return Response.json({});
+		}
+		reads++;
+		return Response.json({ native: [{ providerId: "openai-codex", pending: reads === 1, connected: reads > 1 }] });
+	};
+	await createWebNativeBridge(null).login("openai-codex", false);
+	assert.equal(reads, 2);
+});
+test("Codex device login surfaces failed approval instead of accepting a retained old connection", async () => {
+	globalThis.fetch = async (_url, options) => Response.json(options?.method ? {} : { native: [{ providerId: "openai-codex", pending: false, connected: true, error: "Device approval expired" }] });
+	await assert.rejects(createWebNativeBridge(null).login("openai-codex"), /expired/);
+});

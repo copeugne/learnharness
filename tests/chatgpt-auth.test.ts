@@ -614,7 +614,9 @@ test("disconnect persistence failure is not reported as local forgetting and lea
 test("one app-wide background preference defaults ON over legacy OFF, persists with zero accounts, and never changes on auth/account operations", async () => {
 	const first = await loggedIn(); first.service.close();
 	const legacy = structuredClone(first.saved); legacy.registrations[0].background = false;
-	const f = fixture({ state: legacy });
+	let settled = deferred();
+	const onSettled = (push: any) => { if (!push.status.pending) settled.resolve(); };
+	const f = fixture({ state: legacy, change: onSettled });
 	try {
 		assert.equal((await f.service.status()).allowBackgroundUse, true, "absent new setting ignores legacy per-account OFF");
 		await f.service.lease(true);
@@ -624,17 +626,17 @@ test("one app-wide background preference defaults ON over legacy OFF, persists w
 		await f.service.lease(false);
 		const id = f.saved.activeId;
 		await f.service.select(id); assert.equal((await f.service.status()).allowBackgroundUse, false);
-		await f.service.login(id); await f.callback();
-		for (let i = 0; i < 100 && (await f.service.status()).pending; i++) await new Promise((r) => setImmediate(r));
+		settled = deferred(); await f.service.login(id); await f.callback();
+		await settled.promise;
 		assert.equal(f.saved.allowBackgroundUse, false, "reconnecting cannot overwrite app preference");
 		assert.equal(f.saved.registrations[0].background, undefined, "new verified registrations omit obsolete per-account preference");
 		await f.service.disconnect(f.saved.activeId);
 		assert.deepEqual(f.saved.registrations, []); assert.equal(f.saved.allowBackgroundUse, false);
-		const restarted = fixture({ state: f.saved });
+		const restarted = fixture({ state: f.saved, change: onSettled });
 		try {
 			assert.equal((await restarted.service.status()).allowBackgroundUse, false, "zero-account restart preserves global OFF");
-			await restarted.service.login(); await restarted.callback();
-			for (let i = 0; i < 100 && (await restarted.service.status()).pending; i++) await new Promise((r) => setImmediate(r));
+			settled = deferred(); await restarted.service.login(); await restarted.callback();
+			await settled.promise;
 			assert.equal(restarted.saved.allowBackgroundUse, false);
 			await restarted.service.consent(true); assert.equal(restarted.saved.allowBackgroundUse, true);
 		} finally { restarted.service.close(); }

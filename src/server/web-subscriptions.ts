@@ -28,12 +28,13 @@ function publish(channel: Channel, packet: Packet) {
 	emit("subscriptions-changed", {});
 }
 async function loadSDK() {
-	const [sdk, copilot, xai] = await Promise.all([
+	const [sdk, copilot, xai, codex] = await Promise.all([
 		import("@earendil-works/pi-ai"),
 		import("@earendil-works/pi-ai/providers/github-copilot"),
 		import("@earendil-works/pi-ai/providers/xai"),
+		import("@earendil-works/pi-ai/providers/openai-codex"),
 	]);
-	return { ...sdk, ...copilot, ...xai };
+	return { ...sdk, ...copilot, ...xai, ...codex };
 }
 
 /** Injectable factories/stores keep all test authentication offline. */
@@ -67,7 +68,9 @@ export function createWebSubscriptionOwner(options: {
 			const targets: string[] = [];
 			const value = await launches.run(targets, () => providerId === "chatgpt"
 				? command.op === "complete_login" ? chatgpt.completeLogin(command.url) : chatGPTControl(command, chatgpt)
-				: subscriptionControl({ ...command, providerId }, native));
+				: providerId === "openai-codex" && command.op === "login"
+					? native.startLogin(providerId, command.enabled)
+					: subscriptionControl({ ...command, providerId }, native));
 			let browserAction: string | undefined;
 			const target = targets[0];
 			if (target) {

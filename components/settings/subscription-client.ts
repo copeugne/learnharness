@@ -59,7 +59,19 @@ export function createWebNativeBridge(hub: Hub): NativeSubscriptionControlBridge
 	const call = async (providerId: NativeSubscriptionProviderId, op: string, fields?: Record<string, unknown>) => { await control(providerId, op, fields); };
 	return {
 		status: async () => (await status()).native,
-		login: (providerId, enabled) => call(providerId, "login", { enabled }),
+		login: async (providerId, enabled) => {
+			await call(providerId, "login", { enabled });
+			if (providerId !== "openai-codex") return;
+			// Device approval can outlast a proxy request. Poll short private requests instead.
+			for (;;) {
+				const current = (await status()).native.find((entry) => entry.providerId === providerId);
+				if (!current?.pending) {
+					if (!current?.connected || current.error) throw new Error(current?.error ?? "Codex sign-in did not complete.");
+					return;
+				}
+				await new Promise((resolve) => setTimeout(resolve, 1000));
+			}
+		},
 		cancel: (providerId) => call(providerId, "cancel"),
 		respond: (providerId, attemptId, promptId, value) => call(providerId, "respond", { attemptId, promptId, value }),
 		open: async (providerId, attemptId, actionId) => { await withBrowser(() => control(providerId, "open", { attemptId, actionId })); },

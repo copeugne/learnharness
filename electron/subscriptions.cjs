@@ -5,12 +5,13 @@ const { createRequire, registerHooks } = require("node:module");
 const { pathToFileURL } = require("node:url");
 const { PROVIDERS, fileStore, validateCredential, safeHttps, failure } = require("./subscription-store.cjs");
 
-const LABELS = { "github-copilot": "GitHub Copilot", xai: "Grok" };
-const APIS = new Set(["openai-responses", "openai-completions", "anthropic-messages"]);
+const LABELS = { "github-copilot": "GitHub Copilot", xai: "Grok", "openai-codex": "Codex (device code)" };
+const APIS = new Set(["openai-responses", "openai-completions", "anthropic-messages", "openai-codex-responses"]);
 const clone = (value) => value === undefined ? undefined : JSON.parse(JSON.stringify(value));
 const MESSAGES = {
 	storage: "The saved connection could not be read or written safely. Reopen the app or reconnect after resolving the credential-file problem.",
 	login: "Sign-in did not complete. Try connecting again.",
+	device: "Codex device sign-in did not complete. Enable device-code login in ChatGPT security settings or workspace permissions, then connect again and approve the new code before it expires.",
 	refresh: "The connection could not be refreshed. Retry or reconnect in Providers.",
 	cancel: "Sign-in cancelled.",
 	unavailable: "This subscription connection is unavailable. Reconnect or explicitly choose another connection.",
@@ -33,14 +34,16 @@ async function loadSubscriptionSDK(baseDirectory) {
 		try { file = resolve.resolve(id); } finally { hook.deregister(); }
 		return import(pathToFileURL(file).href);
 	};
-	const [sdk, copilot, xai] = await Promise.all([load("@earendil-works/pi-ai"), load("@earendil-works/pi-ai/providers/github-copilot"), load("@earendil-works/pi-ai/providers/xai")]);
-	return { ...sdk, ...copilot, ...xai };
+	const [sdk, copilot, xai, codex] = await Promise.all([load("@earendil-works/pi-ai"), load("@earendil-works/pi-ai/providers/github-copilot"), load("@earendil-works/pi-ai/providers/xai"), load("@earendil-works/pi-ai/providers/openai-codex")]);
+	return { ...sdk, ...copilot, ...xai, ...codex };
 }
+const DEFAULT_ENDPOINTS = { xai: "https://api.x.ai/v1", "github-copilot": "https://api.individual.githubcopilot.com", "openai-codex": "https://chatgpt.com/backend-api" };
 function validEndpoint(providerId, auth, credential) {
 	if (!auth || (!(typeof auth.apiKey === "string" && auth.apiKey.length > 0) && !Object.entries(auth.headers ?? {}).some(([key, value]) => ["authorization", "x-api-key", "api-key"].includes(key.toLowerCase()) && typeof value === "string" && value.trim().length > 0))) return false;
-	const value = auth.baseUrl ?? (providerId === "xai" ? "https://api.x.ai/v1" : "https://api.individual.githubcopilot.com");
+	const value = auth.baseUrl ?? DEFAULT_ENDPOINTS[providerId];
 	if (!safeHttps(value)) return false;
 	const url = new URL(value);
+	if (providerId === "openai-codex") return url.origin === "https://chatgpt.com" && url.pathname.replace(/\/$/, "") === "/backend-api" && !url.search && !url.hash;
 	if (providerId === "xai") return url.origin === "https://api.x.ai" && url.pathname.replace(/\/$/, "") === "/v1" && !url.search && !url.hash;
 	const domain = credential?.enterpriseUrl;
 	return !url.search && !url.hash && url.pathname === "/" && (!url.port || url.port === "443") && (url.hostname.endsWith(".githubcopilot.com") || (domain && (url.hostname === domain || url.hostname.endsWith(`.${domain}`))));
@@ -82,7 +85,7 @@ function createSubscriptions(options) {
 		if (entry.state.credential) {
 			const auth = await entry.provider.auth.oauth.toAuth(entry.state.credential);
 			if (!validEndpoint(entry.providerId, auth, entry.state.credential)) throw failure("storage");
-			endpoint = auth.baseUrl ?? (entry.providerId === "xai" ? "https://api.x.ai/v1" : "https://api.individual.githubcopilot.com");
+			endpoint = auth.baseUrl ?? DEFAULT_ENDPOINTS[entry.providerId];
 		}
 		if (entry.endpoint !== endpoint) { entry.endpoint = endpoint; entry.authorityRevision++; }
 	}
@@ -99,7 +102,7 @@ function createSubscriptions(options) {
 		await Promise.all([...entries.values()].map(async (entry) => {
 			try {
 				entry.state = clone(await entry.disk.read());
-				const native = entry.providerId === "github-copilot" ? sdk.githubCopilotProvider() : sdk.xaiProvider();
+				const native = entry.providerId === "github-copilot" ? sdk.githubCopilotProvider() : entry.providerId === "openai-codex" ? sdk.openaiCodexProvider() : sdk.xaiProvider();
 				// No API-key auth method exists in this collection: ambient keys cannot become a fallback.
 				entry.provider = { ...native, auth: { oauth: native.auth.oauth } };
 				const store = {
@@ -112,7 +115,10 @@ function createSubscriptions(options) {
 						// refresh was in flight. Admission is rechecked after resolution;
 						// queued logout deletes only after this serialized durable write.
 						if (next !== undefined && JSON.stringify(next) !== JSON.stringify(entry.state.credential)) {
-							try { validateCredential(id, next); } catch { storageFailed(entry); throw failure("storage"); }
+							try {
+								validateCredential(id, next);
+								if (id === "openai-codex" && entry.state.credential && next.accountId !== entry.state.credential.accountId) throw failure("storage");
+							} catch { storageFailed(entry); throw failure("storage"); }
 							await save(entry, { ...entry.state, credential: next });
 						}
 						return clone(entry.state.credential);
@@ -135,16 +141,16 @@ function createSubscriptions(options) {
 		if (typeof enabled !== "boolean" || entry.fatal || closed || paused) throw failure("unavailable");
 		await serialized(entry, async () => { if (entry.state.allowBackgroundUse !== enabled) await save(entry, { ...entry.state, allowBackgroundUse: enabled }); });
 	}
-	async function login(providerId, enabled) {
+	async function login(providerId, enabled, started) {
 		await ready; const entry = entryFor(providerId);
 		if ((enabled !== undefined && typeof enabled !== "boolean") || entry.fatal || closed || paused || !entry.ready) throw failure("unavailable");
 		if ([...entries.values()].some((e) => e.attempt)) throw failure("interaction");
 		const abort = new AbortController();
 		const attempt = { id: randomUUID(), abort, committing: false, actions: new Map(), prompt: null, public: {} };
-		attempt.public = { attemptId: attempt.id }; entry.attempt = attempt; entry.error = undefined; changed(entry);
+		attempt.public = { attemptId: attempt.id }; entry.attempt = attempt; entry.error = undefined; changed(entry); started?.();
 		const active = () => entry.attempt === attempt && !abort.signal.aborted && !closed && !paused;
 		const addBrowser = (value) => {
-			if (!safeHttps(value)) throw failure("interaction");
+			if (!safeHttps(value) || (providerId === "openai-codex" && value !== "https://auth.openai.com/codex/device")) throw failure("interaction");
 			const id = randomUUID(); attempt.actions.set(id, value);
 			const url = new URL(value); attempt.public.browser = { id, url: `${url.origin}${url.pathname}` };
 		};
@@ -160,15 +166,23 @@ function createSubscriptions(options) {
 					attempt.public.progress = event.type === "device_code" || event.type === "auth_url" ? "Complete sign-in in your browser." : "Waiting for the provider…";
 					changed(entry);
 				},
-				prompt: (prompt) => new Promise((resolve, reject) => {
-					if (!active() || prompt.signal?.aborted) { reject(failure("cancel")); return; }
-					const id = randomUUID();
-					const stop = () => { cleanup(); reject(failure("cancel")); };
-					const cleanup = () => { abort.signal.removeEventListener("abort", stop); prompt.signal?.removeEventListener("abort", stop); if (attempt.prompt?.id === id) { attempt.prompt = null; delete attempt.public.prompt; } };
-					attempt.prompt = { id, resolve: (value) => { cleanup(); resolve(value); }, reject: stop };
-					attempt.public.prompt = { id, type: prompt.type, message: prompt.message, ...(prompt.placeholder ? { placeholder: prompt.placeholder } : {}), ...(prompt.type === "select" ? { options: clone(prompt.options) } : {}) };
-					abort.signal.addEventListener("abort", stop, { once: true }); prompt.signal?.addEventListener("abort", stop, { once: true }); changed(entry);
-				}),
+				prompt: (prompt) => {
+					if (providerId === "openai-codex") {
+						if (!active() || prompt.signal?.aborted) return Promise.reject(failure("cancel"));
+						// This connection only supports device auth. Never expose the SDK browser/loopback alternative.
+						return prompt.type === "select" && prompt.options?.some((option) => option.id === "device_code")
+							? Promise.resolve("device_code") : Promise.reject(failure("interaction"));
+					}
+					return new Promise((resolve, reject) => {
+						if (!active() || prompt.signal?.aborted) { reject(failure("cancel")); return; }
+						const id = randomUUID();
+						const stop = () => { cleanup(); reject(failure("cancel")); };
+						const cleanup = () => { abort.signal.removeEventListener("abort", stop); prompt.signal?.removeEventListener("abort", stop); if (attempt.prompt?.id === id) { attempt.prompt = null; delete attempt.public.prompt; } };
+						attempt.prompt = { id, resolve: (value) => { cleanup(); resolve(value); }, reject: stop };
+						attempt.public.prompt = { id, type: prompt.type, message: prompt.message, ...(prompt.placeholder ? { placeholder: prompt.placeholder } : {}), ...(prompt.type === "select" ? { options: clone(prompt.options) } : {}) };
+						abort.signal.addEventListener("abort", stop, { once: true }); prompt.signal?.addEventListener("abort", stop, { once: true }); changed(entry);
+					});
+				},
 			}, { agentName: "LearnHarness" });
 			if (!active()) throw failure("cancel"); validateCredential(providerId, credential);
 			const auth = await entry.provider.auth.oauth.toAuth(credential);
@@ -180,7 +194,7 @@ function createSubscriptions(options) {
 				entry.blocked = false; entry.authFailed = false; entry.error = undefined;
 			});
 		} catch (error) {
-			if (active() && !entry.fatal) entry.error = error?.code === "cancel" ? undefined : MESSAGES.login;
+			if (active() && !entry.fatal) entry.error = error?.code === "cancel" ? undefined : providerId === "openai-codex" ? MESSAGES.device : MESSAGES.login;
 			if (!abort.signal.aborted) throw failure(entry.fatal ? "storage" : "login");
 		} finally { attempt.prompt?.reject(); if (entry.attempt === attempt) { entry.attempt = null; changed(entry); } }
 	}
@@ -210,6 +224,9 @@ function createSubscriptions(options) {
 		async snapshot() { await ready; return snapshotNow(); },
 		async status() { await ready; return snapshotNow().statuses; },
 		login, consent, cancel,
+		startLogin(providerId, enabled) {
+			return new Promise((resolve, reject) => { void login(providerId, enabled, resolve).catch(reject); });
+		},
 		async respond(providerId, attemptId, promptId, value) {
 			const entry = entryFor(providerId), attempt = entry.attempt;
 			if (!attempt || attempt.id !== attemptId || attempt.prompt?.id !== promptId || typeof value !== "string" || value.length > 4096) throw failure("interaction");

@@ -6,6 +6,7 @@ import os from "node:os";
 import { createRequire } from "node:module";
 import { createModels, type OAuthCredential, type ProviderAuthInteraction } from "@earendil-works/pi-ai";
 import { githubCopilotProvider } from "@earendil-works/pi-ai/providers/github-copilot";
+import { openaiCodexProvider } from "@earendil-works/pi-ai/providers/openai-codex";
 import { xaiProvider } from "@earendil-works/pi-ai/providers/xai";
 
 const directory = await fs.mkdtemp(path.join(os.tmpdir(), "lh-web-sub-"));
@@ -90,10 +91,10 @@ test("HTTP controls reject cross-origin, simple-form and private credential oper
 
 function fakeSDK(login: (id: string, interaction: ProviderAuthInteraction) => Promise<OAuthCredential>) {
 	const factory = (id: string) => {
-		const provider = id === "xai" ? xaiProvider() : githubCopilotProvider();
+		const provider = id === "xai" ? xaiProvider() : id === "openai-codex" ? openaiCodexProvider() : githubCopilotProvider();
 		return { ...provider, auth: { oauth: { ...provider.auth.oauth!, login: (interaction: ProviderAuthInteraction) => login(id, interaction), refresh: async () => credentials(id) } } };
 	};
-	return { createModels, githubCopilotProvider: () => factory("github-copilot"), xaiProvider: () => factory("xai") };
+	return { createModels, githubCopilotProvider: () => factory("github-copilot"), xaiProvider: () => factory("xai"), openaiCodexProvider: () => factory("openai-codex") };
 }
 test("device browser actions preserve complete URLs privately, are origin-bound, one-use and cancellation-bound", async () => {
 	const scratch = await fs.mkdtemp(path.join(os.tmpdir(), "lh-web-action-"));
@@ -137,4 +138,26 @@ test("web ChatGPT login supplies only an opaque browser action; cancel/replaceme
 		assert.equal(callback.hostname, "127.0.0.1"); assert.equal(callback.pathname, "/auth/callback");
 		assert(target.searchParams.has("state")); assert(target.searchParams.has("code_challenge"));
 	} finally { owner.close(); await fs.rm(scratch, { recursive: true, force: true }); }
+});
+
+test("web Codex starts without holding the HTTP request open and exposes only the device approval action", async () => {
+	const directory = await fs.mkdtemp(path.join(os.tmpdir(), "lh-web-codex-"));
+	const owner = createWebSubscriptionOwner({ directory, sdk: fakeSDK(async (_id, interaction) => {
+		assert.equal(await interaction.prompt({ type: "select", message: "Login method", options: [{ id: "browser", label: "Browser" }, { id: "device_code", label: "Device" }] }), "device_code");
+		interaction.notify({ type: "device_code", userCode: "PUBLIC", verificationUri: "https://auth.openai.com/codex/device" });
+		return new Promise((_resolve, reject) => interaction.signal!.addEventListener("abort", () => reject(new Error("cancelled")), { once: true }));
+	}) });
+	try {
+		await owner.control("openai-codex", { op: "login" }, "https://learn.test");
+		await new Promise((resolve) => setImmediate(resolve));
+		const pending = (await owner.native.status()).find((s: any) => s.providerId === "openai-codex");
+		assert(pending); assert(pending.pending); assert.equal(pending.interaction.userCode, "PUBLIC"); assert(!pending.interaction.prompt);
+		await assert.rejects(owner.control("openai-codex", { op: "login" }, "https://learn.test"));
+		const opened = await owner.control("openai-codex", { op: "open", attemptId: pending.interaction.attemptId, actionId: pending.interaction.browser.id }, "https://learn.test");
+		assert(opened.browserAction); assert(!JSON.stringify(opened).includes("auth.openai.com"));
+		const id = new URL(opened.browserAction, "https://learn.test").searchParams.get("id")!;
+		assert.equal(await owner.takeBrowserAction(id, "https://other.test"), undefined);
+		await owner.control("openai-codex", { op: "cancel" }, "https://learn.test");
+		assert.equal(await owner.takeBrowserAction(id, "https://learn.test"), undefined);
+	} finally { owner.close(); await fs.rm(directory, { recursive: true, force: true }); }
 });
