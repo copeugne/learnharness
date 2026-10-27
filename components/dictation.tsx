@@ -120,12 +120,14 @@ export const DICTATION_KEYLESS = "Dictation needs a Deepgram key";
  *  DEEPGRAM_API_KEY) is the route's ONLY 503 — the raw message is
  *  dev-speak, so the error becomes the short client-authored line
  *  (zero-keys wave, owner 2026-09-25). */
-async function mintFreshToken(): Promise<string> {
+export async function mintFreshToken(): Promise<string> {
 	const res = await fetch("/api/stt/token");
-	const data = (await res.json()) as { token?: string; message?: string };
+	let data: { token?: string; message?: string; code?: string };
+	try { data = await res.json(); }
+	catch { throw new Error(`Speech token service returned an invalid response (${res.status}). Try again.`); }
 	if (!res.ok || !data.token) {
-		if (res.status === 503) throw new Error(DICTATION_KEYLESS);
-		throw new Error(data.message ?? `token route ${res.status}`);
+		if (data.code === "not_configured") throw new Error(DICTATION_KEYLESS);
+		throw new Error(data.message ?? `Speech token service unavailable (${res.status}). Try again.`);
 	}
 	return data.token;
 }
@@ -145,6 +147,7 @@ export function createWarmMinter(
 	mint: () => Promise<string>,
 	now: () => number = Date.now,
 	ttlMs: number = WARM_TOKEN_TTL_MS,
+	backgroundEnabled: () => boolean = () => true,
 ): WarmMinter {
 	let warm: { p: Promise<string>; at: number } | null = null;
 	const m: WarmMinter = {
@@ -160,13 +163,15 @@ export function createWarmMinter(
 		},
 		refresh: () => {
 			warm = null;
+			if (!backgroundEnabled()) return;
 			m.mint().catch(() => {}); // background best-effort
 		},
 	};
 	return m;
 }
 
-const warmTokens = createWarmMinter(mintFreshToken);
+// Hosted pages mint only when the learner starts dictation.
+const warmTokens = createWarmMinter(mintFreshToken, Date.now, WARM_TOKEN_TTL_MS, () => process.env.LH_WEB_HOSTED !== "1");
 
 /* Persistent capture graph (mitigation C, owner 2026-09-27): one
  * app-lifetime AudioContext + a module-load memo. Created under the

@@ -101,3 +101,25 @@ describe("warm-token cache (mitigation D, owner 2026-09-27)", () => {
 		assert.equal(mints, 1);
 	});
 });
+
+it("hosted dictation makes no mount or teardown mints; explicit starts still work", async () => {
+	let mints = 0;
+	const minter = createWarmMinter(async () => `token-${++mints}`, () => 0, 60_000, () => false);
+	minter.refresh(); minter.refresh(); assert.equal(mints, 0);
+	assert.equal(await minter.mint(), "token-1"); assert.equal(await minter.mint(), "token-1");
+	minter.refresh(); assert.equal(mints, 1);
+	assert.equal(await minter.mint(), "token-2");
+});
+
+it("speech client distinguishes missing configuration from gateway outages", async () => {
+	const { mintFreshToken, DICTATION_KEYLESS } = await import("../components/dictation.tsx");
+	const original = globalThis.fetch;
+	try {
+		globalThis.fetch = async () => Response.json({ code: "not_configured" }, { status: 503 });
+		await assert.rejects(mintFreshToken(), { message: DICTATION_KEYLESS });
+		globalThis.fetch = async () => Response.json({ error: "Runtime unavailable" }, { status: 503 });
+		await assert.rejects(mintFreshToken(), /service unavailable \(503\)/);
+		globalThis.fetch = async () => Response.json({ code: "permission", message: "Deepgram key needs Member permission. Update it in Settings > Providers." }, { status: 403 });
+		await assert.rejects(mintFreshToken(), /Member permission/);
+	} finally { globalThis.fetch = original; }
+});

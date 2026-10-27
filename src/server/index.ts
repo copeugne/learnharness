@@ -46,3 +46,5 @@ export * from "./model-catalog.ts";
 export { subscriptionControlsResponse, subscriptionBrowserResponse } from "./web-subscription-http.ts";
 export * from "./learner-files.ts";
 export { sessionCost } from "./pricing.ts";
+
+export { speechTokenResponse } from "./stt.ts";

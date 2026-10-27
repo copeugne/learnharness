@@ -10,6 +10,8 @@ The current VPS allocation supports twelve registered accounts and eight active 
 
 General settings links to **Learner files** for private notes, PDF and image uploads. Copy the displayed path into a session to let the existing agent tools read the exact file. Uploading alone does not send it to a provider. Limits are 8 MiB per file and 16 MiB per request. For browser sign-in without localhost redirects, use **Settings > Providers > Codex (device code)**. Approve the short code on OpenAI’s site, then return to LearnHarness. Device-code login must be enabled in ChatGPT security settings or workspace permissions. This is a separate connection with separate model choices; existing ChatGPT connections remain available. The original remote ChatGPT sign-in can accept the final loopback redirect URL through the original state, PKCE and nonce verifier; Copilot and Grok retain their device/prompt flows.
 
+Dictation uses Deepgram and needs a key with at least Member permission to issue temporary speech tokens. Add it in Settings > Providers > Deepgram. Hosted pages request tokens only when dictation starts, so visiting pages does not use the key or produce background token errors.
+
 ### Verification and hosting
 
 The public deployment was verified on 2026-10-27 from commit `27f5c7f89347a4a027d77366fdc04a9187c070a9`. The application suite has 2,346 passing tests; deployment tests add 16. Real-container checks cover quotas, filesystem/network boundaries, Chromium and persistence. Ten public checks cover TLS, independent accounts, streaming, uploads, source availability and logout. Real provider inference and physical Safari/microphone behavior remain unverified. The ledger records each artifact and its limits.
