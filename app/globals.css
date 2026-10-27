@@ -602,6 +602,23 @@ body {
 /* Hosted phone layouts retain the desktop skin and give controls the full
    reading width. Electron's native narrow-window behavior stays separate. */
 @media (max-width: 640px) {
+  .lh-web .lh-graph-actions {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .lh-web .lh-graph-search {
+    width: 100%;
+    flex-shrink: 0;
+  }
+  .lh-web .lh-graph-actions :is(button, input) {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .lh-web .lh-closed-toggle {
+    width: 44px;
+    height: 44px;
+  }
   .lh-web aside.sidebar-motion {
     position: fixed;
     inset-block: 0;
