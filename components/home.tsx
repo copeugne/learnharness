@@ -67,6 +67,9 @@ export function Home({
 	 * the keyboard from the stop. Falling edge only; this surface's only
 	 * dictation target IS this textarea, so no case-split is needed. */
 	const topicInputRef = useRef<HTMLTextAreaElement>(null);
+	useEffect(() => {
+		if (process.env.LH_WEB_HOSTED === "1" && !window.matchMedia("(pointer: coarse)").matches) topicInputRef.current?.focus();
+	}, []);
 	// Tab navigates INTO the topic composer (owner, keyboard round
 	// 2026-10-06): the only text field on this surface — and home's
 	// composer is its OWN textarea, not the shared Composer component,
@@ -271,7 +274,7 @@ export function Home({
 							}
 						}}
 						placeholder={mode === "practice" ? "What do you want to practice?" : "What do you want to learn?"}
-						autoFocus
+						autoFocus={process.env.LH_WEB_HOSTED !== "1"}
 						rows={1}
 						className="field-sizing-content lh-input max-h-48 min-h-10 flex-1 resize-none bg-transparent px-2.5 py-2 outline-none placeholder:text-muted-foreground"
 					/>
