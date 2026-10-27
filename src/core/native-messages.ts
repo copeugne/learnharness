@@ -39,6 +39,7 @@ import { QUESTION_TOOLS } from "./pending.ts";
 import {
 	CONCLUDE_ACK_TEXT,
 	HANDOFF_TEXT,
+	RESUME_PROBE_TEXT,
 	NEXT_PROBLEM_TEXT,
 	THINKING_LABEL,
 } from "./contracts/chat.ts";
@@ -203,15 +204,24 @@ export function newAnswerResult(
 
 /** The probe→teach handoff wake: scaffolding, not speech — the model reads
  *  HANDOFF_TEXT, the UI renders the quiet system line. */
-export function newHandoffMessage(chatId: string): LhMarkerMessage {
+export function newHandoffMessage(chatId: string, toolCallId?: string): LhMarkerMessage {
 	return {
-		id: `steer_probe_${chatId}`,
+		id: toolCallId ? `steer_probe_${chatId}_${toolCallId}` : `steer_probe_${chatId}`,
 		role: "custom",
 		customType: "probe-handoff",
 		content: HANDOFF_TEXT,
 		display: true,
 		details: { chatId },
 		timestamp: Date.now(),
+	};
+}
+
+/** Return through the same idle-only delivery path with diagnostic instructions. */
+export function newProbeResumeMessage(chatId: string, toolCallId: string): LhMarkerMessage {
+	return {
+		...newHandoffMessage(chatId),
+		id: `steer_resume_probe_${toolCallId}`,
+		content: RESUME_PROBE_TEXT,
 	};
 }
 

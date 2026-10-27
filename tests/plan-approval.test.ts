@@ -25,10 +25,18 @@ const review = { purpose: "plan_review" as const, question: "Ce parcours te conv
 const quiz = { question: "Which quantity is larger?", options: [{ label: "0.8" }, { label: "0.75" }],
 	correctAnswer: "0.8", explanation: "Eight tenths", type: "predict" as const, nodeId: "quantities" };
 function call(id: string, name: string, args = {}): LhMessage {
-	return { id, role: "assistant", content: [{ type: "toolCall", id, name, arguments: args }], stopReason: "toolUse", timestamp: 1 } as LhMessage;
+	return {
+		id,
+		role: "assistant",
+		content: [{ type: "toolCall", id, name, arguments: args }],
+		stopReason: "toolUse",
+		timestamp: 1,
+	} as LhMessage;
 }
 function result(id: string, name: string, details: Extract<LhMessage, { role: "toolResult" }>["details"] = { ok: true }): LhMessage {
-	return { id: `${id}-result`, role: "toolResult", toolCallId: id, toolName: name, content: [{ type: "text", text: "ok" }], details, isError: false, timestamp: 2 };
+	return {
+		id: `${id}-result`, role: "toolResult", toolCallId: id, toolName: name, content: [{ type: "text", text: "ok" }], details, isError: false, timestamp: 2,
+	};
 }
 const plan = (id: string) => [call(id, "plan_init"), result(id, "plan_init", { ok: true, approvalRequired: true })];
 const prefix = [call("done", "probe_done"), result("done", "probe_done"), ...plan("plan"), call("review", "ask_user_question", review)];

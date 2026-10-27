@@ -365,7 +365,10 @@ export const QUIZ_TOOL_NAMES = ["quiz", "explain"] as const;
 export const quizInputSchema = quizInputObject;
 
 export const askInputSchema = Type.Object({
-	purpose: Type.Optional(Type.Literal("plan_review", { description: "Review the presented plan. Use single-select options with values accept, revise, and probe. Only accept authorizes teaching; probe returns to diagnostic." })),
+	purpose: Type.Optional(Type.Literal("plan_review", {
+		description: "Review the presented plan. Use single-select options with values accept, revise, and probe. " +
+			"Only accept authorizes teaching; probe returns to diagnostic.",
+	})),
 	// No `mode` param — the pi original has none: the mode is inferred from
 	// whether options are present (the dock does exactly this). One less
 	// knob for the model to misuse.
@@ -806,11 +809,13 @@ export function compactAnswerForModel(ad: QuestionAnswerData): Record<string, un
 export function planReviewChoice(input: unknown, output: unknown): "accept" | "revise" | "probe" | null {
 	const question = input as AskToolInput | undefined;
 	const answer = output as QuestionAnswerData | undefined;
+	const selected = answer?.answers?.[0];
 	if (question?.purpose !== "plan_review" || question.multiSelect || answer?.kind !== "ask" ||
-		answer.dismissed || answer.dontKnow || answer.other || answer.answers?.length !== 1) return null;
-	const choice = answer.answers[0]!.value;
+		answer.dismissed || answer.dontKnow || answer.other || !selected || answer.answers.length !== 1) return null;
+	const choice = selected.value;
+	if (choice !== "accept" && choice !== "revise" && choice !== "probe") return null;
 	const options = parseOptionsIfString(question.options);
-	if (!["accept", "revise", "probe"].includes(choice) || !Array.isArray(options) ||
+	if (!Array.isArray(options) ||
 		!options.some((o) => o.value === choice)) return null;
-	return choice as "accept" | "revise" | "probe";
+	return choice;
 }

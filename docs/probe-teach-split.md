@@ -43,7 +43,8 @@ The prober concludes explicitly:
 - **Server-side tool.** Input: the learner assessment. Output: ok/error.
 - **Refuses while a question is open** ("resolve the open question first") —
   same doctrine as nodeId validation.
-- **Refuses a second conclusion** (idempotent: the probe concludes once).
+- **Refuses a second conclusion within the current diagnostic.** A successful
+  `resume_probe` or a diagnostic plan-review choice opens a new cycle.
   Conclusion requires a later `probe_done` result matching the call's ID
   and tool name. The calling generation must not have failed or aborted;
   the result must not be `isError` or explicitly contain `details.ok:false`.
@@ -101,24 +102,32 @@ That is the wrong signal and is **abolished**. The new contract:
 
 ## 4. Phases — explicit events, no occupancy derivation
 
-The phase chain is **event-driven**:
+The phase chain derives from transcript events:
 
-**probe (prober)** — `probe_done` → **planning (teacher)** — the first
-`nodeId`-tagged quiz call → **teach (teacher)**
+- A successful `probe_done` result changes probing to planning.
+- The first valid, node-tagged `quiz` or `explain` call starts teaching.
+  Rejected calls and failed or aborted generations never start teaching.
+- A successful `resume_probe` or a diagnostic plan-review choice returns
+  the session to probing. A later completion can start planning again.
 
-- The broken derived-occupancy seam (phase-of-tree via `currentNodeId`
-  nothing ever sets — the stuck-on-plan bug) is **replaced, not patched**.
-- The verdict gate is DEAD (owner ruling 2026-09-26 — simplified away):
-  presenting the plan ends the teacher's turn, and the learner's next
-  message is a natural reply — a change request (revise, re-present, end
-  the turn again) or the go-ahead. The plan→teach seam is **inferred**:
-  the first quiz call tagged with a `nodeId` (a question ABOUT a plan
-  node; probe quizzes carry no nodeId) is where teaching begins. The
-  phase fold (`phaseAt3`) advances there, the teaching divider renders
-  before that whole assistant block, and the live phase indicator may lag
-  until the first node's question is posed (owner-accepted). Mid-lesson
-  `plan_init` rewrites need no gate at all.
-- The session picker phase derives from the transcript the same way.
+New initial plans require the learner's explicit `accept` response to
+`ask_user_question` with `purpose: "plan_review"`. Approval authorizes the
+first teaching question; the phase remains planning until that question is
+posed. `revise` keeps planning open, and `probe` selects the prober before
+generation. Dismissal, Other and free text do not authorize teaching.
+
+A replacement presented before teaching requires fresh approval. Ordinary
+mid-lesson map rewrites continue without another review unless diagnostic
+reopens. Existing records without this protocol retain their established
+behavior until reopening; upgrading never rewrites transcripts or maps.
+
+The native and view folds, picker phase and transcript dividers follow the
+same events. Results project onto calls in the view, including refusals.
+The fixture and projection regressions pin their agreement.
+
+The explicit initial review is a proposed change to the 2026-09-26 decision
+that removed the verdict gate. It preserves the separate prober and teacher,
+full conversation history and transcript-derived phase state.
 
 ## 5. No global-graph context in sessions (for now)
 
@@ -181,24 +190,3 @@ free-text correctAnswer) are expected to shrink with higher thinking
 budgets and runtime model control — but the *semantics* had to be right
 first. Model mistakes are good test material: they exercise the
 return-to-agent validation loops.
-
-## Learner-controlled diagnostic and initial plan approval
-
-A successful `resume_probe` returns either agent to probing without deleting
-history or maps. It stops the run and queues an idle-only phase handoff.
-The next request constructs the prober; a new `probe_done` can conclude
-again, with a wake ID unique to its call.
-
-New initial `plan_init` results carry `approvalRequired: true`. Present
-`ask_user_question` with `purpose: "plan_review"` and single-select values
-`accept`, `revise`, and `probe`, with labels in the learner's language.
-Only an explicit `accept` authorizes that presentation. Stale answers,
-dismissals, Other and free text never imply approval. `probe` selects the
-prober before generation; `revise` keeps planning open. Quiz and explain
-reject unapproved plans, including in the presenting run. Rejected calls
-do not start teaching. Mid-lesson rewrites continue without another review
-unless diagnostic reopened. Old records retain their established behavior
-until reopening; upgrading never rewrites private transcripts or trees.
-
-Regressions: `tests/rejected-question-phase.test.ts`,
-`tests/diagnostic-reopen.test.ts`, and `tests/plan-approval.test.ts`.

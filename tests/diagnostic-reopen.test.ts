@@ -17,12 +17,19 @@ import type { SteerMessage } from "../src/core/contracts.ts";
 const created: string[] = [];
 after(() => { for (const id of created) fs.rmSync(path.join(PATHS.chats, `${id}.json`), { force: true }); });
 function call(id: string, name: string, args = {}): LhMessage {
-	return { id, role: "assistant", content: [{ type: "toolCall", id, name, arguments: args }],
-		stopReason: "toolUse", timestamp: 1 } as LhMessage;
+	return {
+		id,
+		role: "assistant",
+		content: [{ type: "toolCall", id, name, arguments: args }],
+		stopReason: "toolUse",
+		timestamp: 1,
+	} as LhMessage;
 }
 function result(id: string, tool: string, isError = false, details = { ok: true }): LhMessage {
-	return { id: `${id}-result`, role: "toolResult", toolCallId: id, toolName: tool,
-		content: [{ type: "text", text: "ok" }], details, isError, timestamp: 2 };
+	return {
+		id: `${id}-result`, role: "toolResult", toolCallId: id, toolName: tool,
+		content: [{ type: "text", text: "ok" }], details, isError, timestamp: 2,
+	};
 }
 const done = [call("done", "probe_done"), result("done", "probe_done")];
 const teaching = [...done, call("quiz", "quiz", { nodeId: "foundation" })];

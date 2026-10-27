@@ -73,13 +73,10 @@ export function probeDoneTool(ctx: ProbeDoneContext): Record<string, AgentTool<a
 					};
 				}
 				if (probeConcluded(record.messages)) {
-					return { ok: false, error: "The probe is already concluded — probe_done fires exactly once." };
+					return { ok: false, error: "The current diagnostic is already concluded. Reopen it before concluding again." };
 				}
 				try {
-					const handoff = buildProbeHandoffSteer(ctx.chatId);
-					// Each diagnostic cycle needs its own idempotent wake.
-					handoff.id += `_${toolCallId}`;
-					ctx.deliver(handoff);
+					ctx.deliver(buildProbeHandoffSteer(ctx.chatId, toolCallId));
 				} catch (err) {
 					console.error(`[chat ${ctx.chatId}] probe handoff queueing failed:`, err);
 					// The handoff is recoverable-by-design (the next client message

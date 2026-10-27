@@ -5,13 +5,20 @@ import { projectView } from "../src/core/view.ts";
 import type { LhMessage } from "../src/core/native-messages.ts";
 
 function call(id: string, name: string, args = {}): LhMessage {
-	return { id, role: "assistant", content: [{ type: "toolCall", id, name, arguments: args }],
-		stopReason: "toolUse", timestamp: 1 } as LhMessage;
+	return {
+		id,
+		role: "assistant",
+		content: [{ type: "toolCall", id, name, arguments: args }],
+		stopReason: "toolUse",
+		timestamp: 1,
+	} as LhMessage;
 }
 function result(id: string, name: string, isError: boolean, details = {}): LhMessage {
-	return { id: `${id}-result`, role: "toolResult", toolCallId: id, toolName: name,
+	return {
+		id: `${id}-result`, role: "toolResult", toolCallId: id, toolName: name,
 		content: [{ type: "text", text: isError ? "Invalid nodeId: no plan exists" : "ok" }],
-		isError, details, timestamp: 2 };
+		isError, details, timestamp: 2,
+	};
 }
 const probe = [call("done", "probe_done"), result("done", "probe_done", false, { ok: true })];
 
@@ -36,7 +43,13 @@ for (const name of ["quiz", "explain"]) {
 	for (const stopReason of ["error", "aborted"]) {
 		test(`${name}: ${stopReason} generation is not delivered teaching`, () => {
 			const failed = { ...call("failed", name, { nodeId: "valid" }), stopReason } as LhMessage;
-			assert.equal(phaseAt3Lh([...probe, failed]), "plan");
+			const messages = [...probe, failed];
+			assert.equal(phaseAt3Lh(messages), "plan");
+			const view = projectView(messages);
+			assert.equal(phaseAt3(view), "plan");
+			assert.equal(view.flatMap((m) => m.parts).some((p) => p.type === `tool-${name}`), false);
+			const staleAnswer = [...messages, result("failed", name, false)];
+			assert.equal(phaseAt3(projectView(staleAnswer)), phaseAt3Lh(staleAnswer));
 		});
 	}
 }
